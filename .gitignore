@@ -1,2 +1,3 @@
-/inbox
-emails.jsonl
+/server/data/inbox
+/server/data/emails.jsonl
+.env
