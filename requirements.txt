@@ -1,0 +1,5 @@
+beautifulsoup4==4.14.3
+mailbox==0.4
+soupsieve==2.8
+typing_extensions==4.15.0
+lxml==6.0.2
