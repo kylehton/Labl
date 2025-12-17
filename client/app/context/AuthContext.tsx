@@ -32,15 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`${SERVER_URL}/api/user/auth/status`, {
         credentials: "include", // MUST INCLUDE
       });
-
+      console.log(res)
       if (res.ok) {
         const data = await res.json();
+        console.log(data)
         if (data.authenticated) {
+            console.log("setting data to user")
           setUser(data.user);
+          console.log(user)
         } else {
           setUser(null);
         }
       } else {
+        console.log('no user found')
         setUser(null);
       }
     } catch (err) {
@@ -57,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 🌐 Redirect user to backend login endpoint
   const login = () => {
+    console.log('routing to login...')
     window.location.href = `${SERVER_URL}/api/user/auth/login`;
   };
 

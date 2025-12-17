@@ -15,11 +15,12 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_OAUTH_REDIRECT_URI")
 
 GMAIL_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.modify"
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
 ]
 
 router = APIRouter(prefix="/api/user/auth")
-
 
 @router.get("/login")
 def login():
@@ -39,8 +40,6 @@ def login():
         logger.error(f"Failed to generate login URL: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate login URL: {e}")
 
-
-
 def exchange_code_for_tokens(code: str) -> dict:
     """Exchange the authorization code for access & refresh tokens."""
     try:
@@ -57,9 +56,7 @@ def exchange_code_for_tokens(code: str) -> dict:
     except requests.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Token exchange failed: {e}")
 
-
 def fetch_google_user(access_token: str) -> dict:
-    """Fetch the user's profile info from Google."""
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
         resp = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers=headers)
@@ -67,7 +64,6 @@ def fetch_google_user(access_token: str) -> dict:
         return resp.json()
     except requests.RequestException as e:
         raise HTTPException(status_code=400, detail=f"Fetching user info failed: {e}")
-
 
 @router.get("/login/callback")
 def callback(request: Request, code: str = None, error: str = None):
@@ -91,17 +87,22 @@ def callback(request: Request, code: str = None, error: str = None):
         key="gsort_session",
         value=session_id,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=False,       # SET TO TRUE for prod.
+        samesite="lax",    # 'none' REQUIRED for cross-origin
     )
     return response
 
-
 @router.get("/status")
 def status(request: Request):
+    print("🍪 RAW COOKIE HEADER:", request.headers.get("cookie"))
+    print("🍪 PARSED COOKIES:", request.cookies)
+
     session = get_session(request)
+    print("📦 SESSION:", session)
+
     if not session:
         return {"authenticated": False}
+
     return {"authenticated": True, "user": session.get("user")}
 
 

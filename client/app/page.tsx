@@ -9,11 +9,14 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('loading:',loading)
     if (loading) return;
 
     if (isAuthenticated) {
+      
       router.replace("/dashboard");
     } else {
+      console.log("not authenticated")
       router.replace("/landing-page");
     }
   }, [loading, isAuthenticated, router]);
