@@ -11,6 +11,7 @@ SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", 60 * 60 * 24 * 30))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def create_session(data: dict) -> str:
     session_id = uuid4().hex
     key = f"session:{session_id}"
