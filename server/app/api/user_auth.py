@@ -78,8 +78,15 @@ def callback(request: Request, code: str = None, error: str = None):
     user = fetch_google_user(tokens.get("access_token"))
 
     session_id = create_session({
-        "user": user,
-        "refresh_token": tokens.get("refresh_token"),
+        "user": {
+            "name": user['given_name'],
+            "email": user['email'],
+            "user_id": user['id']
+        },
+        "tokens": {
+            "access_token": tokens.get("access_token"),
+            "refresh_token": tokens.get("refresh_token")
+        }
     })
 
     response = RedirectResponse("http://localhost:3000")
