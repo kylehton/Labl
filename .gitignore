@@ -1,3 +1,6 @@
 /server/data/inbox
 /server/data/emails.jsonl
 .env
+
+**/__pycache__
+.venv

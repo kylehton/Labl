@@ -8,7 +8,6 @@ interface User {
   name: string;
   picture: string;
 }
-
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -18,37 +17,34 @@ interface AuthContextType {
   refetch: () => Promise<void>;
 }
 
-const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "DNE";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-
   const router = useRouter();
-
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // 🔑 Fetch auth status from backend
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`${SERVER_URL}/api/user/auth/status`, {
-        credentials: 'include',
+      const res = await fetch(`${SERVER_URL}/api/user/auth/status`, {
+        credentials: "include", // MUST INCLUDE
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (res.ok) {
+        const data = await res.json();
         if (data.authenticated) {
           setUser(data.user);
         } else {
-          console.log("User not authenticated.")
           setUser(null);
         }
       } else {
-        console.log("Response Error: No User.")
         setUser(null);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    } catch (err) {
+      console.error("Auth status check failed:", err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -59,21 +55,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
+  // 🌐 Redirect user to backend login endpoint
   const login = () => {
-    // Direct redirect to API endpoint for Google login
-    window.location.href = `${SERVER_URL}/api/google/auth/login`;
+    window.location.href = `${SERVER_URL}/api/user/auth/login`;
   };
 
   const logout = async () => {
     try {
-      await fetch(`${SERVER_URL}/api/google/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
+      const res = await fetch(`${SERVER_URL}/api/user/auth/logout`, {
+        method: "POST",
+        credentials: "include",
       });
-      setUser(null);
-      router.push("/")
-    } catch (error) {
-      console.error('Logout failed:', error);
+      if (res.ok) {
+        setUser(null);
+        router.push("/"); // landing page
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
     }
   };
 
@@ -91,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Hook to access AuthContext
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
@@ -99,21 +98,21 @@ export function useAuth() {
   return context;
 }
 
-// Custom hook for making authenticated API calls
+// Custom hook for authenticated fetch requests
 export function useAuthenticatedFetch() {
   const { refetch } = useAuth();
 
   const authenticatedFetch = async (url: string, options?: RequestInit) => {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       ...options,
-      credentials: 'include',
+      credentials: "include",
     });
 
-    // If unauthorized, try to refetch auth status
-    if (response.status === 401) {
+    // If session expired, try to refresh
+    if (res.status === 401) {
       await refetch();
     }
-    return response;
+    return res;
   };
 
   return authenticatedFetch;
