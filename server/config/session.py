@@ -54,4 +54,12 @@ def get_session(request: Request) -> dict | None:
 
 
 def delete_session(session_id: str):
-    redis_client.delete(f"session:{session_id}")
+    try:
+        redis_client.delete(f"session:{session_id}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to log out user: {e}",
+        )
+    return
+ 

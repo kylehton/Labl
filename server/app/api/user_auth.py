@@ -101,15 +101,9 @@ def callback(request: Request, code: str = None, error: str = None):
 
 @router.get("/status")
 def status(request: Request):
-    print("🍪 RAW COOKIE HEADER:", request.headers.get("cookie"))
-    print("🍪 PARSED COOKIES:", request.cookies)
-
     session = get_session(request)
-    print("📦 SESSION:", session)
-
     if not session:
         return {"authenticated": False}
-
     return {"authenticated": True, "user": session.get("user")}
 
 
@@ -122,3 +116,4 @@ def logout(request: Request):
     response = JSONResponse({"ok": True})
     response.delete_cookie("gsort_session")
     return response
+
