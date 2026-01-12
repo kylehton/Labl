@@ -3,7 +3,9 @@ from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
 import os
 import uvicorn
+
 from app.api import user_auth
+from config.db import connect_to_mongo, close_mongo_connection
 
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -29,6 +31,15 @@ app.add_middleware(
 
 
 app.include_router(user_auth.router)
+
+@app.on_event("startup")
+async def startup_event():
+    await connect_to_mongo()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_mongo_connection()
 
 @app.get("/")
 def read_root():
