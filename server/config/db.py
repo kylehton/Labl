@@ -23,7 +23,6 @@ async def connect_to_mongo() -> None:
 
 async def close_mongo_connection() -> None:
     global client
-
     if client is not None:
         client.close()
         client = None
