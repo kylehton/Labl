@@ -1,5 +1,5 @@
 """Unit tests for session logic (create, get, delete) with mocked DB."""
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -139,7 +139,7 @@ async def test_get_session_returns_none_when_expired(mock_db):
     }
     session_id = await create_session(data)
     doc = _fake_store[session_id]
-    doc["expires_at"] = datetime.utcnow() - timedelta(seconds=1)
+    doc["expires_at"] = datetime.now(UTC) - timedelta(seconds=1)
     _fake_store[session_id] = doc
 
     request = MagicMock()

@@ -1,17 +1,26 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-from urllib.parse import urlencode
+from contextlib import asynccontextmanager
+
 import os
 import uvicorn
+from fastapi import FastAPI
 
 from app.api import user_auth
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 
-from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await connect_to_mongo()
+    await ensure_session_indexes()
+    yield
+    await close_mongo_connection()
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,15 +42,6 @@ app.add_middleware(
 
 app.include_router(user_auth.router)
 
-@app.on_event("startup")
-async def startup_event():
-    await connect_to_mongo()
-    await ensure_session_indexes()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await close_mongo_connection()
 
 @app.get("/")
 def read_root():

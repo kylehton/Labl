@@ -1,5 +1,5 @@
 """DB-backed sessions with encrypted token storage. Opaque session_id in cookie."""
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
@@ -36,8 +36,8 @@ async def create_session(data: dict) -> str:
         "user": user,
         "access_token": access_token,
         "refresh_token_encrypted": refresh_encrypted,
-        "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(seconds=SESSION_TTL_SECONDS),
+        "created_at": datetime.now(UTC),
+        "expires_at": datetime.now(UTC) + timedelta(seconds=SESSION_TTL_SECONDS),
     }
 
     try:
@@ -60,7 +60,7 @@ async def get_session(request: Request) -> dict | None:
         return None
 
     expires_at = doc.get("expires_at")
-    if expires_at and expires_at < datetime.utcnow():
+    if expires_at and expires_at < datetime.now(UTC):
         # Expired – delete and return None
         await delete_one(SESSION_COLLECTION, {"session_id": session_id})
         return None

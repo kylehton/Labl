@@ -50,10 +50,8 @@ def test_logout_clears_session():
         patch("app.api.user_auth.get_session", new_callable=AsyncMock),
         patch("app.api.user_auth.delete_session", new_callable=AsyncMock) as mock_delete,
     ):
-        resp = client.post(
-            "/api/user/auth/logout",
-            cookies={"labl_session": "some-session-id"},
-        )
+        client.cookies.set("labl_session", "some-session-id")
+        resp = client.post("/api/user/auth/logout")
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
     mock_delete.assert_awaited_once_with("some-session-id")
@@ -64,6 +62,7 @@ def test_logout_clears_session():
 
 def test_logout_without_cookie_succeeds():
     """POST /api/user/auth/logout without cookie still returns 200."""
+    client.cookies.delete("labl_session")
     with patch(
         "app.api.user_auth.delete_session", new_callable=AsyncMock
     ) as mock_delete:
