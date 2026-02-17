@@ -6,6 +6,7 @@ import uvicorn
 
 from app.api import user_auth
 from config.db import connect_to_mongo, close_mongo_connection
+from config.session import ensure_session_indexes
 
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -35,6 +36,7 @@ app.include_router(user_auth.router)
 @app.on_event("startup")
 async def startup_event():
     await connect_to_mongo()
+    await ensure_session_indexes()
 
 
 @app.on_event("shutdown")

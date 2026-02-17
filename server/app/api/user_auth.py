@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
-from config.session import create_session, get_session, delete_session
-from dependencies.session_auth import require_auth
 from urllib.parse import urlencode
 import os
 import requests
 import logging
+from config.session import (
+    COOKIE_NAME,
+    SECURE_COOKIE,
+    create_session,
+    get_session,
+    delete_session,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +71,7 @@ def fetch_google_user(access_token: str) -> dict:
         raise HTTPException(status_code=400, detail=f"Fetching user info failed: {e}")
 
 @router.get("/login/callback")
-def callback(request: Request, code: str = None, error: str = None):
+async def callback(request: Request, code: str = None, error: str = None):
     if error:
         logger.error(f"Google login error: {error}")
         raise HTTPException(status_code=400, detail=f"Google login failed: {error}")
@@ -77,43 +82,44 @@ def callback(request: Request, code: str = None, error: str = None):
     tokens = exchange_code_for_tokens(code)
     user = fetch_google_user(tokens.get("access_token"))
 
-    session_id = create_session({
+    session_id = await create_session({
         "user": {
-            "name": user['given_name'],
-            "email": user['email'],
-            "user_id": user['id']
+            "name": user["given_name"],
+            "email": user["email"],
+            "user_id": user["id"],
         },
         "tokens": {
             "access_token": tokens.get("access_token"),
-            "refresh_token": tokens.get("refresh_token")
-        }
+            "refresh_token": tokens.get("refresh_token"),
+        },
     })
 
-    response = RedirectResponse("http://localhost:3000")
+    redirect_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    response = RedirectResponse(redirect_url)
     response.set_cookie(
-        key="gsort_session",
+        key=COOKIE_NAME,
         value=session_id,
         httponly=True,
-        secure=False,       # SET TO TRUE for prod.
-        samesite="lax",    # 'none' REQUIRED for cross-origin
+        secure=SECURE_COOKIE,
+        samesite="lax",
     )
     return response
 
 @router.get("/status")
-def status(request: Request):
-    session = get_session(request)
+async def status(request: Request):
+    session = await get_session(request)
     if not session:
         return {"authenticated": False}
     return {"authenticated": True, "user": session.get("user")}
 
 
 @router.post("/logout")
-def logout(request: Request):
-    session_id = request.cookies.get("gsort_session")
+async def logout(request: Request):
+    session_id = request.cookies.get(COOKIE_NAME)
     if session_id:
-        delete_session(session_id)
+        await delete_session(session_id)
 
     response = JSONResponse({"ok": True})
-    response.delete_cookie("gsort_session")
+    response.delete_cookie(COOKIE_NAME)
     return response
 

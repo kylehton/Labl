@@ -1,65 +1,93 @@
-import json
+"""DB-backed sessions with encrypted token storage. Opaque session_id in cookie."""
+from datetime import datetime, timedelta
 from uuid import uuid4
-from fastapi import Request, HTTPException
-from config.redis import redis_client
+
+from fastapi import HTTPException, Request
+
+from config.crypto import decrypt, encrypt
+from config.db import delete_one, find_one, get_collection, insert_one
+
 import os
 import logging
 
-COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "gsort_session")
-SESSION_TTL = int(os.getenv("SESSION_TTL_SECONDS", 60 * 60 * 24 * 30))
+COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "labl_session")
+SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", 60 * 60 * 24 * 30))  # 30 days
+SESSION_COLLECTION = "sessions"
+
+# Secure cookie in production (HTTPS). Set to False for local dev.
+SECURE_COOKIE = os.getenv("SECURE_COOKIE", "false").lower() == "true"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def create_session(data: dict) -> str:
+async def create_session(data: dict) -> str:
+    """Create a session in MongoDB. Encrypts refresh token. Returns session_id."""
     session_id = uuid4().hex
-    key = f"session:{session_id}"
+    user = data.get("user", {})
+    tokens = data.get("tokens", {})
+    access_token = tokens.get("access_token")
+    refresh_token = tokens.get("refresh_token")
+
+    refresh_encrypted = encrypt(refresh_token) if refresh_token else None
+
+    doc = {
+        "session_id": session_id,
+        "user": user,
+        "access_token": access_token,
+        "refresh_token_encrypted": refresh_encrypted,
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(seconds=SESSION_TTL_SECONDS),
+    }
 
     try:
-        redis_client.setex(
-            key,
-            SESSION_TTL,
-            json.dumps(data),
-        )
+        await insert_one(SESSION_COLLECTION, doc)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create session: {e}",
-        )
+        logger.exception("Failed to create session")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {e}") from e
 
     return session_id
 
 
-def get_session(request: Request) -> dict | None:
-    logger.info(f"Identifier: {COOKIE_NAME}")
+async def get_session(request: Request) -> dict | None:
+    """Load session from DB by session_id in cookie. Returns session dict or None."""
     session_id = request.cookies.get(COOKIE_NAME)
-    logger.info(f"Session ID: {session_id}")
-
     if not session_id:
-        logger.info("no session found")
         return None
 
-    key = f"session:{session_id}"
-    data = redis_client.get(key)
-
-    if not data:
-        logger.info(f"no data found")
+    doc = await find_one(SESSION_COLLECTION, {"session_id": session_id})
+    if not doc:
         return None
 
+    expires_at = doc.get("expires_at")
+    if expires_at and expires_at < datetime.utcnow():
+        # Expired – delete and return None
+        await delete_one(SESSION_COLLECTION, {"session_id": session_id})
+        return None
+
+    refresh_enc = doc.get("refresh_token_encrypted")
+    refresh_token = decrypt(refresh_enc) if refresh_enc else None
+
+    return {
+        "user": doc.get("user", {}),
+        "tokens": {
+            "access_token": doc.get("access_token"),
+            "refresh_token": refresh_token,
+        },
+    }
+
+
+async def delete_session(session_id: str) -> None:
+    """Remove session from DB."""
     try:
-        return json.loads(data)
-    except json.JSONDecodeError:
-        return None
-
-
-def delete_session(session_id: str):
-    try:
-        redis_client.delete(f"session:{session_id}")
+        await delete_one(SESSION_COLLECTION, {"session_id": session_id})
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to log out user: {e}",
-        )
-    return
- 
+        logger.exception("Failed to delete session")
+        raise HTTPException(status_code=500, detail=f"Failed to log out: {e}") from e
+
+
+async def ensure_session_indexes() -> None:
+    """Create indexes for sessions collection: session_id (unique) and TTL on expires_at."""
+    coll = get_collection(SESSION_COLLECTION)
+    await coll.create_index("session_id", unique=True)
+    await coll.create_index([("expires_at", 1)], expireAfterSeconds=0)
