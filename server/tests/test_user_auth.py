@@ -6,10 +6,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-
 # TestClient is sync; FastAPI handles async routes
 client = TestClient(app)
-
 
 @pytest.fixture(autouse=True)
 def mock_mongo_startup():

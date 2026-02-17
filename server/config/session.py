@@ -10,6 +10,9 @@ from config.db import delete_one, find_one, get_collection, insert_one
 import os
 import logging
 
+from dotenv import load_dotenv
+load_dotenv()
+
 COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "labl_session")
 SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", 60 * 60 * 24 * 30))  # 30 days
 SESSION_COLLECTION = "sessions"
@@ -60,10 +63,12 @@ async def get_session(request: Request) -> dict | None:
         return None
 
     expires_at = doc.get("expires_at")
-    if expires_at and expires_at < datetime.now(UTC):
-        # Expired – delete and return None
-        await delete_one(SESSION_COLLECTION, {"session_id": session_id})
-        return None
+    if expires_at:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at < datetime.now(UTC):
+            await delete_one(SESSION_COLLECTION, {"session_id": session_id})
+            return None
 
     refresh_enc = doc.get("refresh_token_encrypted")
     refresh_token = decrypt(refresh_enc) if refresh_enc else None

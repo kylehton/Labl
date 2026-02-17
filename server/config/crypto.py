@@ -5,6 +5,9 @@ import os
 
 from cryptography.fernet import Fernet
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Derive a valid Fernet key from env. Set ENCRYPTION_KEY in production.
 _SECRET = os.getenv("ENCRYPTION_KEY", "dev-only-change-in-production")
 _KEY = base64.urlsafe_b64encode(hashlib.sha256(_SECRET.encode()).digest())

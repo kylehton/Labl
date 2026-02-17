@@ -5,6 +5,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from app.api import user_auth
+from app.api import gmail
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 
@@ -39,13 +40,12 @@ app.add_middleware(
     https_only=False,    # Value=True REQUIRED for cross-origin
 )
 
-
 app.include_router(user_auth.router)
-
+app.include_router(gmail.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "GSort Server Connected!"}
+    return {"message": "Labl Server Connected!"}
     
 
 if __name__ == "__main__":
