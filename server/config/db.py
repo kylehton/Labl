@@ -1,46 +1,48 @@
-from typing import Optional
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-client: Optional[AsyncIOMotorClient] = None
-db: Optional[AsyncIOMotorDatabase] = None
+_client: Optional[AsyncIOMotorClient] = None
+_db: Optional[AsyncIOMotorDatabase] = None
 
 
 async def connect_to_mongo() -> None:
-    global client, db
-    if client is None:
-        client = AsyncIOMotorClient(
+    global _client, _db
+    if _client is None:
+        _client = AsyncIOMotorClient(
             MONGO_URI,
+            tz_aware=True,
             maxPoolSize=50,
-            minPoolSize=5
+            minPoolSize=5,
         )
-        db = client[MONGO_DB_NAME]
+        _db = _client[MONGO_DB_NAME]
 
 
 async def close_mongo_connection() -> None:
-    global client
-    if client is not None:
-        client.close()
-        client = None
+    global _client
+    if _client:
+        _client.close()
+        _client = None
 
 
 def get_db() -> AsyncIOMotorDatabase:
-    if db is None:
-        raise RuntimeError("MongoDB not initialized. Connect to Mongo Client first.")
-    return db
+    if _db is None:
+        raise RuntimeError("Mongo not initialized")
+    return _db
 
 
 def get_collection(name: str):
     return get_db()[name]
 
 
-async def insert_one(collection: str, document: dict) -> int:
+async def insert_one(collection: str, document: dict):
     result = await get_collection(collection).insert_one(document)
     return result.inserted_id
 
@@ -57,6 +59,10 @@ async def find_many(collection: str, query: dict, limit: int = 100) -> list:
 async def update_one(collection: str, query: dict, update: dict) -> int:
     result = await get_collection(collection).update_one(query, update)
     return result.modified_count
+
+
+async def upsert_one(collection: str, query: dict, document: dict) -> None:
+    await get_collection(collection).update_one(query, {"$set": document}, upsert=True)
 
 
 async def delete_one(collection: str, query: dict) -> int:

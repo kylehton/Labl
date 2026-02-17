@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from pydantic import BaseModel, EmailStr, Field
-from models.label import Label
+from app.models.label import Label
 
 class User(BaseModel):
     user_id: str

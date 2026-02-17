@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request
 
+from app.models.session import SessionDocument
+from app.repositories.users import get_or_create_user
 from config.crypto import decrypt, encrypt
 from config.db import delete_one, find_one, get_collection, insert_one
 
@@ -25,23 +27,31 @@ logger = logging.getLogger(__name__)
 
 
 async def create_session(data: dict) -> str:
-    """Create a session in MongoDB. Encrypts refresh token. Returns session_id."""
+    """Upsert user in users collection, create session with SessionDocument. Returns session_id."""
     session_id = uuid4().hex
-    user = data.get("user", {})
+    user_data = data.get("user", {})
     tokens = data.get("tokens", {})
     access_token = tokens.get("access_token")
     refresh_token = tokens.get("refresh_token")
+    user_id = user_data.get("user_id", "")
+    email = user_data.get("email", "")
+    name = user_data.get("name", "")
+
+    await get_or_create_user(user_id=user_id, email=email, name=name)
 
     refresh_encrypted = encrypt(refresh_token) if refresh_token else None
+    now = datetime.now(UTC)
+    expires_at = now + timedelta(seconds=SESSION_TTL_SECONDS)
 
-    doc = {
-        "session_id": session_id,
-        "user": user,
-        "access_token": access_token,
-        "refresh_token_encrypted": refresh_encrypted,
-        "created_at": datetime.now(UTC),
-        "expires_at": datetime.now(UTC) + timedelta(seconds=SESSION_TTL_SECONDS),
-    }
+    session_doc = SessionDocument(
+        session_id=session_id,
+        user_id=user_id,
+        access_token=access_token,
+        refresh_token_encrypted=refresh_encrypted,
+        created_at=now,
+        expires_at=expires_at,
+    )
+    doc = session_doc.model_dump()
 
     try:
         await insert_one(SESSION_COLLECTION, doc)
@@ -53,7 +63,9 @@ async def create_session(data: dict) -> str:
 
 
 async def get_session(request: Request) -> dict | None:
-    """Load session from DB by session_id in cookie. Returns session dict or None."""
+    """Load session by session_id, then user from users collection. Returns session dict or None."""
+    from app.repositories.users import get_user_by_id
+
     session_id = request.cookies.get(COOKIE_NAME)
     if not session_id:
         return None
@@ -70,11 +82,17 @@ async def get_session(request: Request) -> dict | None:
             await delete_one(SESSION_COLLECTION, {"session_id": session_id})
             return None
 
+    user_id = doc.get("user_id")
+    user_doc = await get_user_by_id(user_id) if user_id else None
+    if not user_doc:
+        await delete_one(SESSION_COLLECTION, {"session_id": session_id})
+        return None
+
     refresh_enc = doc.get("refresh_token_encrypted")
     refresh_token = decrypt(refresh_enc) if refresh_enc else None
 
     return {
-        "user": doc.get("user", {}),
+        "user": user_doc.user.model_dump(),
         "tokens": {
             "access_token": doc.get("access_token"),
             "refresh_token": refresh_token,

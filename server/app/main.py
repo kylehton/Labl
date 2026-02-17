@@ -4,8 +4,8 @@ import os
 import uvicorn
 from fastapi import FastAPI
 
-from app.api import user_auth
-from app.api import gmail
+from app.api import gmail, auth, user as user_api
+from app.repositories.users import ensure_user_indexes
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 
@@ -17,6 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 async def lifespan(app: FastAPI):
     await connect_to_mongo()
     await ensure_session_indexes()
+    await ensure_user_indexes()
     yield
     await close_mongo_connection()
 
@@ -40,7 +41,8 @@ app.add_middleware(
     https_only=False,    # Value=True REQUIRED for cross-origin
 )
 
-app.include_router(user_auth.router)
+app.include_router(auth.router)
+app.include_router(user_api.router)
 app.include_router(gmail.router)
 
 @app.get("/")
