@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from config.session import COOKIE_NAME
 
 # TestClient is sync; FastAPI handles async routes
 client = TestClient(app)
@@ -34,7 +35,7 @@ def test_status_authenticated():
         "user": {"name": "Jane", "email": "jane@example.com", "user_id": "456"},
         "tokens": {},
     }
-    with patch("config.session.get_session", new_callable=AsyncMock, return_value=session_data):
+    with patch("app.api.auth.get_session", new_callable=AsyncMock, return_value=session_data):
         resp = client.get("/api/user/auth/status")
     assert resp.status_code == 200
     data = resp.json()
@@ -45,20 +46,19 @@ def test_status_authenticated():
 def test_logout_clears_session():
     """POST /api/user/auth/logout calls delete_session and clears cookie."""
     with patch("app.api.auth.delete_session", new_callable=AsyncMock) as mock_delete:
-        resp = client.post(
-            "/api/user/auth/logout",
-            headers={"Cookie": "labl_session=some-session-id"},
-        )
+        with TestClient(app) as test_client:
+            test_client.cookies.set(COOKIE_NAME, "some-session-id")
+            resp = test_client.post("/api/user/auth/logout")
     assert resp.status_code == 200
     assert resp.json() == {"ok": True}
     mock_delete.assert_awaited_once_with("some-session-id")
-    set_cookies = [h for h in resp.headers.get_list("set-cookie") if "labl_session" in h.lower()]
+    set_cookies = [h for h in resp.headers.get_list("set-cookie") if COOKIE_NAME in h.lower()]
     assert len(set_cookies) >= 1
 
 
 def test_logout_without_cookie_succeeds():
     """POST /api/user/auth/logout without cookie still returns 200."""
-    client.cookies.delete("labl_session")
+    client.cookies.delete(COOKIE_NAME)
     with patch("app.api.auth.delete_session", new_callable=AsyncMock) as mock_delete:
         resp = client.post("/api/user/auth/logout")
     assert resp.status_code == 200

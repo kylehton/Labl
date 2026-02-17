@@ -75,6 +75,7 @@ def mock_db():
         patch("config.session.find_one", side_effect=_mock_find_one),
         patch("config.session.delete_one", side_effect=_mock_delete_one),
         patch("config.session.get_or_create_user", side_effect=_mock_get_or_create_user),
+        patch("app.repositories.users.get_user_by_id", side_effect=_mock_get_user_by_id),
     ):
         yield
 
