@@ -26,30 +26,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔑 Fetch auth status from backend
+  // Clear session on server, clear local state, and redirect to landing
+  const forceLogoutAndRedirect = async () => {
+    try {
+      await fetch(`${SERVER_URL}/api/user/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Ignore; we still redirect
+    }
+    setUser(null);
+    router.replace("/landing-page");
+  };
+
+  // Fetch auth status from backend
   const checkAuthStatus = async () => {
     try {
       const res = await fetch(`${SERVER_URL}/api/user/auth/status`, {
         credentials: "include", // MUST INCLUDE
       });
-      console.log(res)
       if (res.ok) {
         const data = await res.json();
-        console.log(data)
         if (data.authenticated) {
-            console.log("setting data to user")
           setUser(data.user);
-          console.log(user)
         } else {
-          setUser(null);
+          await forceLogoutAndRedirect();
         }
       } else {
-        console.log('no user found')
-        setUser(null);
+        await forceLogoutAndRedirect();
       }
     } catch (err) {
       console.error("Auth status check failed:", err);
-      setUser(null);
+      await forceLogoutAndRedirect();
     } finally {
       setLoading(false);
     }
@@ -59,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
-  // 🌐 Redirect user to backend login endpoint
+  // Redirect user to backend login endpoint
   const login = () => {
     console.log('routing to login...')
     window.location.href = `${SERVER_URL}/api/user/auth/login`;
@@ -73,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         setUser(null);
-        router.push("/"); // landing page
+        router.replace("/landing-page");
       }
     } catch (err) {
       console.error("Logout failed:", err);

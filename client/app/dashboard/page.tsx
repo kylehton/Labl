@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Mail, Plus, Trash2, Undo2, Tag } from "lucide-react"
+import { useAuth } from "../context/AuthContext"
 
 export default function Dashboard() {
-  const [userName] = useState("Kyle")
-  const [userEmail] = useState("khtcodes@gmail.com")
+  const {user, isAuthenticated, loading} = useAuth();
+  const [userName, setUserName] = useState("Name")
+  const [userEmail, setUserEmail] = useState("user@mail.com")
 
   const [labels, setLabels] = useState([
     "Internship",
@@ -94,6 +96,18 @@ export default function Dashboard() {
       time: "12 hours ago",
     },
   ])
+
+  useEffect(() => {
+    if (!isAuthenticated && !loading){
+      console.log("Not authenticated");
+    }
+    else {
+      if (user) {
+        setUserName(user.name)
+        setUserEmail(user.email)
+      }
+    }
+  }, [loading, isAuthenticated])
 
   const addLabel = () => {
     if (newLabel.trim() && !labels.includes(newLabel.trim())) {
