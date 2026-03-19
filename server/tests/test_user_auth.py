@@ -17,6 +17,7 @@ def mock_mongo_startup():
         patch("app.main.connect_to_mongo", new_callable=AsyncMock),
         patch("app.main.ensure_session_indexes", new_callable=AsyncMock),
         patch("app.main.ensure_user_indexes", new_callable=AsyncMock),
+        patch("app.main.load_model"),
     ):
         yield
 

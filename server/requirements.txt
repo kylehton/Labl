@@ -16,6 +16,8 @@ idna==3.11
 iniconfig==2.3.0
 itsdangerous==2.2.0
 motor==3.7.1
+numpy
+sentence-transformers
 packaging==26.0
 pluggy==1.6.0
 pycparser==3.0

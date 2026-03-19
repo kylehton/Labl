@@ -8,6 +8,7 @@ from app.api import gmail, auth, user as user_api
 from app.repositories.users import ensure_user_indexes
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
+from ml.embeddings import load_model
 
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     await ensure_session_indexes()
     await ensure_user_indexes()
+    load_model()
     yield
     await close_mongo_connection()
 

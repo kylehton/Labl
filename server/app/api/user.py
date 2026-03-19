@@ -1,15 +1,33 @@
-"""Current user document API: get/update profile, labels, settings."""
+"""Current user document API: get/update profile, labels, settings, and label seeding."""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from pydantic import BaseModel
 
 from app.repositories.users import get_user_by_id, update_user_document
+from config.gmail import GmailClient
+from config.session import COOKIE_NAME
 from dependencies.session_auth import require_auth
+from ml.pipeline import seed_label_centroid
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
+MESSAGE_ID_PATTERN = r"^[a-zA-Z0-9]+$"
+
+
+# ------------------------------------------------------------------
+# Request bodies
+# ------------------------------------------------------------------
+
+class SeedLabelBody(BaseModel):
+    message_ids: list[str]
+
+
+# ------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------
 
 @router.get("")
 async def get_user(session: dict = Depends(require_auth)):
@@ -39,3 +57,69 @@ async def update_user(session: dict = Depends(require_auth), body: dict | None =
     if not updated:
         raise HTTPException(status_code=404, detail="User document not found")
     return updated.model_dump()
+
+
+@router.post("/labels/{label_name}/seed")
+async def seed_label(
+    body: SeedLabelBody,
+    request: Request,
+    session: dict = Depends(require_auth),
+    label_name: str = Path(..., min_length=1, max_length=100),
+):
+    """Seed a label's centroid from a set of example emails.
+
+    Fetches the full body of each provided message_id from Gmail, embeds them,
+    computes a mean centroid, and stores it in MongoDB. The label must already
+    exist in the user's label store (created via POST /api/gmail/labels).
+
+    Body:
+        message_ids: list of Gmail message IDs to use as seed examples (min 1).
+    """
+    if not body.message_ids:
+        raise HTTPException(status_code=422, detail="At least one message_id required")
+
+    # Validate message IDs (same pattern as gmail routes)
+    import re
+    pattern = re.compile(MESSAGE_ID_PATTERN)
+    for mid in body.message_ids:
+        if not pattern.match(mid):
+            raise HTTPException(status_code=422, detail=f"Invalid message_id: {mid!r}")
+
+    user_id = session["user"]["user_id"]
+    user_doc = await get_user_by_id(user_id)
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    if label_name not in user_doc.labels:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Label '{label_name}' not found. Create it first via POST /api/gmail/labels.",
+        )
+
+    # Fetch full message bodies from Gmail for embedding
+    tokens = session.get("tokens", {})
+    gmail = GmailClient(
+        access_token=tokens.get("access_token", ""),
+        refresh_token=tokens.get("refresh_token"),
+        session_id=request.cookies.get(COOKIE_NAME),
+    )
+
+    seed_texts: list[tuple[str, str]] = []
+    for mid in body.message_ids:
+        msg = await gmail.get_message_body(mid)
+        seed_texts.append((msg.get("subject", ""), msg.get("body", "")))
+
+    # Compute centroid and persist
+    centroid = seed_label_centroid(seed_texts)
+    await update_user_document(
+        user_id,
+        {
+            f"labels.{label_name}.centroid": centroid,
+            f"labels.{label_name}.count": len(seed_texts),
+        },
+    )
+
+    return {
+        "label_name": label_name,
+        "seeded_with": len(seed_texts),
+        "centroid_dim": len(centroid),
+    }

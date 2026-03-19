@@ -22,6 +22,7 @@ def mock_mongo_startup():
         patch("app.main.connect_to_mongo", new_callable=AsyncMock),
         patch("app.main.ensure_session_indexes", new_callable=AsyncMock),
         patch("app.main.ensure_user_indexes", new_callable=AsyncMock),
+        patch("app.main.load_model"),
     ):
         yield
 
@@ -77,7 +78,9 @@ def test_get_messages_returns_messages_since_last_checked(http_client, gmail_cli
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["messages"] == fake_messages
+    # Each message is enriched with a "pipeline" key by the route
+    expected = [{**m, "pipeline": None} for m in fake_messages]
+    assert data["messages"] == expected
     assert data["count"] == 2
 
     # Correct after= timestamp was forwarded to the Gmail client
