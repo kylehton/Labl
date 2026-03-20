@@ -99,7 +99,7 @@ export default function Home() {
       <footer className="w-full border-t border-white/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-gray-500 text-sm">© 2025 GSort. All rights reserved.</p>
+            <p className="text-gray-500 text-sm">© 2026 Labl. All rights reserved.</p>
             <div className="flex items-center gap-6 text-sm text-gray-500">
               <Link href="/privacy" className="hover:text-[#F6F6F6] transition-colors">
                 Privacy Policy

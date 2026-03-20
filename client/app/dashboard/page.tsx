@@ -4,12 +4,15 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Mail, Plus, Trash2, Undo2, Tag } from "lucide-react"
-import { useAuth } from "../context/AuthContext"
+import { useAuth, useAuthenticatedFetch } from "../context/AuthContext"
 
 export default function Dashboard() {
   const {user, isAuthenticated, loading} = useAuth();
+  const authFetch = useAuthenticatedFetch();
   const [userName, setUserName] = useState("Name")
   const [userEmail, setUserEmail] = useState("user@mail.com")
+
+  const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL
 
   const [labels, setLabels] = useState([
     "Internship",
@@ -109,11 +112,21 @@ export default function Dashboard() {
     }
   }, [loading, isAuthenticated])
 
+  const handleAddLabel = async () => {
+      const res = await authFetch(`${SERVER_URL}/api/gmail/labels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newLabel}),
+      });
+  }
+
   const addLabel = () => {
     if (newLabel.trim() && !labels.includes(newLabel.trim())) {
       setLabels([...labels, newLabel.trim()])
+      handleAddLabel()
       setNewLabel("")
     }
+
   }
 
   const removeLabel = (label: string) => {
