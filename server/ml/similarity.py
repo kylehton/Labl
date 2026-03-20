@@ -4,13 +4,16 @@ import numpy as np
 from app.models.label import Label
 
 # Minimum similarity score to auto-label. Below this → suggest only.
-LABEL_THRESHOLD = 0.75
+LABEL_THRESHOLD = 0.85
+# Minimum similarity score to suggest at all. Below this → no action.
+SUGGEST_THRESHOLD = 0.65
 
 
 def find_best_label(
     email_vector: list[float],
     labels: dict[str, Label],
     threshold: float = LABEL_THRESHOLD,
+    suggest_threshold: float = SUGGEST_THRESHOLD,
 ) -> dict | None:
     """Find the highest-scoring label for an email vector.
 
@@ -44,7 +47,7 @@ def find_best_label(
             best_score = score
             best_name = name
 
-    if best_name is None:
+    if best_name is None or best_score < suggest_threshold:
         return None
 
     return {
