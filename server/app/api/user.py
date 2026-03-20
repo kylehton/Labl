@@ -64,7 +64,7 @@ async def seed_label(
     body: SeedLabelBody,
     request: Request,
     session: dict = Depends(require_auth),
-    label_name: str = Path(..., min_length=1, max_length=100),
+    label_name: str = Path(..., min_length=5, max_length=20),
 ):
     """Seed a label's centroid from a set of example emails.
 

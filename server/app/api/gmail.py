@@ -223,9 +223,12 @@ async def apply_label(
     if not body.label_ids:
         raise HTTPException(status_code=422, detail="label_ids required")
     client = _gmail_client(session, request)
-    await client.apply_labels(
-        message_id,
-        add_label_ids=body.label_ids,
-        remove_label_ids=body.remove_label_ids,
-    )
-    return {"ok": True}
+    try:
+        await client.apply_labels(
+            message_id,
+            add_label_ids=body.label_ids,
+            remove_label_ids=body.remove_label_ids,
+        )
+        return {"ok": True}
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
