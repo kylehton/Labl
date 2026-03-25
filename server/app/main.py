@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.api import gmail, auth, user as user_api
 from app.repositories.users import ensure_user_indexes
+from app.repositories.presets import seed_preset_collection
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 from ml.embeddings import load_model
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
     await ensure_session_indexes()
     await ensure_user_indexes()
     load_model()
+    await seed_preset_collection()
     yield
     await close_mongo_connection()
 

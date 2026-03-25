@@ -27,7 +27,20 @@ async def get_or_create_user(user_id: str, email: str, name: str) -> UserDocumen
     existing = await get_user_by_id(user_id)
     if existing:
         return existing
-    doc = UserDocument(user=User(user_id=user_id, email=email, name=name), auto_label=False, labels={})
+
+    from app.repositories.presets import get_preset_labels
+    from app.models.label import Label
+
+    preset_labels = await get_preset_labels()
+
+    # Subscription List has no medoid — it is matched purely by _check_rules.
+    preset_labels["Subscription List"] = Label(name="Subscription List", type="system")
+
+    doc = UserDocument(
+        user=User(user_id=user_id, email=email, name=name),
+        auto_label=False,
+        labels=preset_labels,
+    )
     await _repo_instance().upsert(doc)
     return doc
 

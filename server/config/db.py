@@ -22,7 +22,8 @@ async def connect_to_mongo() -> None:
             maxPoolSize=50,
             minPoolSize=5,
             tls=True,
-            tlsAllowInvalidCertificates=True, # testing only, remove in production
+            #tlsALlowInvalidCertificates=True, # testing only, remove in production
+            tlsInsecure=True, # testing only, remove in production
         )
         _db = _client[MONGO_DB_NAME]
 
