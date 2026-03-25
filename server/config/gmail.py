@@ -158,6 +158,7 @@ class GmailClient:
             "id": message_id,
             "subject": headers.get("Subject", ""),
             "body": _extract_body(payload),
+            "list_unsubscribe": headers.get("List-Unsubscribe") is not None,
         }
 
     # ------------------------------------------------------------------

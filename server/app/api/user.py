@@ -8,7 +8,7 @@ from app.repositories.users import get_user_by_id, update_user_document
 from config.gmail import GmailClient
 from config.session import COOKIE_NAME
 from dependencies.session_auth import require_auth
-from ml.pipeline import seed_label_centroid
+from ml.pipeline import seed_label as compute_seed_label
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +66,10 @@ async def seed_label(
     session: dict = Depends(require_auth),
     label_name: str = Path(..., min_length=5, max_length=20),
 ):
-    """Seed a label's centroid from a set of example emails.
+    """Seed a label's medoid from a set of example emails.
 
     Fetches the full body of each provided message_id from Gmail, embeds them,
-    computes a mean centroid, and stores it in MongoDB. The label must already
+    computes a medoid, and stores it in MongoDB. The label must already
     exist in the user's label store (created via POST /api/gmail/labels).
 
     Body:
@@ -108,18 +108,15 @@ async def seed_label(
         msg = await gmail.get_message_body(mid)
         seed_texts.append((msg.get("subject", ""), msg.get("body", "")))
 
-    # Compute centroid and persist
-    centroid = seed_label_centroid(seed_texts)
+    # Compute medoid and persist
+    fields = compute_seed_label(seed_texts)
     await update_user_document(
         user_id,
-        {
-            f"labels.{label_name}.centroid": centroid,
-            f"labels.{label_name}.count": len(seed_texts),
-        },
+        {f"labels.{label_name}.{k}": v for k, v in fields.items()},
     )
 
     return {
         "label_name": label_name,
         "seeded_with": len(seed_texts),
-        "centroid_dim": len(centroid),
+        "centroid_dim": len(fields["medoid"]),
     }

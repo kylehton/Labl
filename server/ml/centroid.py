@@ -1,40 +1,44 @@
-"""Centroid computation and online EMA update for label vectors."""
+"""Medoid computation and k-means clustering for label embedding vectors."""
 import numpy as np
+from sklearn.cluster import KMeans
 
-# Learning rate for exponential moving average updates.
-# Lower = centroid adapts slowly (stable); higher = adapts quickly (responsive).
-EMA_ALPHA = 0.1
+# Emails needed before graduating from single medoid to k-means clusters.
+CLUSTER_THRESHOLD = 20
+# Hard cap on number of clusters regardless of email count.
+K_MAX = 5
 
 
-def compute_centroid(embeddings: list[list[float]]) -> list[float]:
-    """Compute mean centroid from seed embeddings, then L2-normalise.
+def k_for_count(n: int) -> int:
+    """Return the number of k-means clusters appropriate for n confirmed emails."""
+    return min(K_MAX, max(2, n // 10))
 
-    Called once when a user seeds a label with their initial k emails.
-    The result is stored as label.centroid in MongoDB.
+
+def compute_medoid(embeddings: list[list[float]]) -> list[float]:
+    """Return the embedding that is most central to all others.
+
+    Because all vectors are L2-normalised, dot product == cosine similarity,
+    so the most central point is argmax of row sums of the gram matrix.
+    This is an actual data point (a real email embedding), not a synthetic average.
     """
     arr = np.array(embeddings, dtype=np.float32)
-    centroid = arr.mean(axis=0)
-    norm = np.linalg.norm(centroid)
-    if norm > 0:
-        centroid = centroid / norm
-    return centroid.tolist()
+    # gram[i, j] = cosine_similarity(e_i, e_j) since vectors are L2-normalised
+    gram = arr @ arr.T
+    centrality = gram.sum(axis=1)
+    medoid_idx = int(np.argmax(centrality))
+    return arr[medoid_idx].tolist()
 
 
-def update_centroid_ema(
-    current_centroid: list[float],
-    new_embedding: list[float],
-    alpha: float = EMA_ALPHA,
-) -> list[float]:
-    """Shift centroid toward a confirmed new example using EMA, then re-normalise.
+def fit_kmeans(embeddings: list[list[float]], k: int) -> list[list[float]]:
+    """Fit k-means and return L2-normalised cluster centers.
 
-    Called when a user confirms a suggested label (or when auto_label fires).
-    Re-normalisation keeps the vector on the unit sphere so cosine similarity
-    stays well-defined.
+    Called when label.count >= CLUSTER_THRESHOLD. Each center is renormalised
+    so cosine similarity (dot product) stays well-defined against them.
     """
-    c = np.array(current_centroid, dtype=np.float32)
-    e = np.array(new_embedding, dtype=np.float32)
-    updated = (1.0 - alpha) * c + alpha * e
-    norm = np.linalg.norm(updated)
-    if norm > 0:
-        updated = updated / norm
-    return updated.tolist()
+    arr = np.array(embeddings, dtype=np.float32)
+    km = KMeans(n_clusters=k, n_init=10, random_state=42)
+    km.fit(arr)
+    centers = km.cluster_centers_.astype(np.float32)
+    norms = np.linalg.norm(centers, axis=1, keepdims=True)
+    norms = np.where(norms > 0, norms, 1.0)
+    centers = centers / norms
+    return centers.tolist()

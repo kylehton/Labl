@@ -10,7 +10,7 @@ from config.gmail import GmailClient
 from config.session import COOKIE_NAME
 from dependencies.session_auth import require_auth
 from app.models.label import Label
-from ml.pipeline import process_email, update_label_after_confirmation
+from ml.pipeline import process_email, confirm_label
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -75,7 +75,7 @@ async def get_messages(
     """Fetch inbox messages since last_checked, run the labeling pipeline, update last_checked.
 
     For each new message the pipeline result is included under the "pipeline" key:
-      - action="label"   → label applied directly in Gmail + centroid updated via EMA
+      - action="label"   → label applied directly in Gmail + medoid/clusters updated
       - action="suggest" → "Suggested: <name>" label applied in Gmail
       - pipeline=None    → no seeded labels yet, or message already labelled
     """
@@ -127,17 +127,14 @@ async def get_messages(
 
         label = labels.get(result["label_name"])
 
-        if result["action"] == "label" and label and label.gmail_label_id and label.centroid:
+        if result["action"] == "label" and label and label.gmail_label_id and (
+            label.medoid is not None or label.clusters is not None
+        ):
             await client.apply_labels(msg["id"], add_label_ids=[label.gmail_label_id])
-            new_centroid = update_label_after_confirmation(
-                label.centroid, result["vector"]
-            )
+            fields = confirm_label(label, result["vector"], result["text"])
             await update_user_document(
                 user_id,
-                {
-                    f"labels.{result['label_name']}.centroid": new_centroid,
-                    f"labels.{result['label_name']}.count": (label.count or 0) + 1,
-                },
+                {f"labels.{result['label_name']}.{k}": v for k, v in fields.items()},
             )
 
         elif result["action"] == "suggest" and label:
