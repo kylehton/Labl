@@ -3,7 +3,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 # Emails needed before graduating from single medoid to k-means clusters.
-CLUSTER_THRESHOLD = 20
+# 30 gives a stable corpus before splitting — 20 was too few for reliable clustering.
+CLUSTER_THRESHOLD = 30
 # Hard cap on number of clusters regardless of email count.
 K_MAX = 5
 
@@ -35,7 +36,7 @@ def fit_kmeans(embeddings: list[list[float]], k: int) -> list[list[float]]:
     so cosine similarity (dot product) stays well-defined against them.
     """
     arr = np.array(embeddings, dtype=np.float32)
-    km = KMeans(n_clusters=k, n_init=10, random_state=42)
+    km = KMeans(n_clusters=k, n_init=3, random_state=42)
     km.fit(arr)
     centers = km.cluster_centers_.astype(np.float32)
     norms = np.linalg.norm(centers, axis=1, keepdims=True)

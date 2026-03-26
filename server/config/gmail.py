@@ -1,4 +1,5 @@
 """Async Gmail REST API client with automatic access-token refresh."""
+import asyncio
 import base64
 import logging
 import os
@@ -109,41 +110,73 @@ class GmailClient:
     # ------------------------------------------------------------------
 
     async def list_messages_since(
-        self, after: datetime | None = None, max_results: int = 50
+        self,
+        after: datetime | None = None,
+        max_results: int = 50,
+        limit: int | None = None,
     ) -> list[dict]:
-        """Return message metadata (id, snippet, subject, from, date) for inbox messages since `after`."""
-        params: dict = {"maxResults": max_results, "labelIds": "INBOX"}
+        """Return message metadata (id, snippet, subject, from, date) for inbox messages since `after`.
+
+        When `after` is None (first-time full sync), paginates through all inbox messages
+        using nextPageToken until exhausted, fetching 500 per page (Gmail's max).
+        When `after` is set (incremental sync), fetches a single page up to `max_results`.
+
+        `limit` caps the total number of messages returned regardless of sync mode.
+        Useful for testing against a large inbox without waiting for a full sync.
+        """
+        full_sync = after is None
+        if limit is not None:
+            page_size = min(limit, 500)
+        elif full_sync:
+            page_size = 500
+        else:
+            page_size = max_results
+        params: dict = {
+            "maxResults": page_size,
+            "labelIds": "INBOX",
+        }
         if after:
             params["q"] = f"after:{int(after.timestamp())}"
 
-        data = await self._get(f"{GMAIL_API_BASE}/messages", params=params)
-        raw_messages = data.get("messages", [])
+        raw_messages: list[dict] = []
+        while True:
+            data = await self._get(f"{GMAIL_API_BASE}/messages", params=params)
+            raw_messages.extend(data.get("messages", []))
+            if limit is not None and len(raw_messages) >= limit:
+                raw_messages = raw_messages[:limit]
+                break
+            next_page_token = data.get("nextPageToken")
+            if not full_sync or not next_page_token:
+                break
+            params["pageToken"] = next_page_token
 
-        results = []
-        for msg in raw_messages:
-            meta = await self._get(
-                f"{GMAIL_API_BASE}/messages/{msg['id']}",
-                params={
-                    "format": "metadata",
-                    "metadataHeaders": ["Subject", "From", "Date"],
-                },
-            )
+        # Fetch metadata for all messages concurrently, bounded to avoid rate limits.
+        semaphore = asyncio.Semaphore(5)
+
+        async def fetch_meta(msg: dict) -> dict:
+            async with semaphore:
+                meta = await self._get(
+                    f"{GMAIL_API_BASE}/messages/{msg['id']}",
+                    params={
+                        "format": "metadata",
+                        "metadataHeaders": ["Subject", "From", "Date"],
+                    },
+                )
             headers = {
                 h["name"]: h["value"]
                 for h in meta.get("payload", {}).get("headers", [])
             }
-            results.append(
-                {
-                    "id": msg["id"],
-                    "thread_id": meta.get("threadId"),
-                    "snippet": meta.get("snippet", ""),
-                    "subject": headers.get("Subject", "(no subject)"),
-                    "from": headers.get("From", ""),
-                    "date": headers.get("Date", ""),
-                    "label_ids": meta.get("labelIds", []),
-                }
-            )
-        return results
+            return {
+                "id": msg["id"],
+                "thread_id": meta.get("threadId"),
+                "snippet": meta.get("snippet", ""),
+                "subject": headers.get("Subject", "(no subject)"),
+                "from": headers.get("From", ""),
+                "date": headers.get("Date", ""),
+                "label_ids": meta.get("labelIds", []),
+            }
+
+        return list(await asyncio.gather(*[fetch_meta(m) for m in raw_messages]))
 
     async def get_message_body(self, message_id: str) -> dict:
         """Fetch subject + decoded plain-text body for embedding."""

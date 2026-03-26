@@ -113,10 +113,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Transfer funds to avoid overdraft fees.",
         ),
         (
-            "Invoice #2260 from Stripe",
-            "Hi, your invoice from Acme Corp for $799.00 is due on April 1. "
-            "Services rendered: Monthly SaaS subscription (Enterprise tier). "
-            "Pay now or view invoice details.",
+            "Your credit score changed — Experian",
+            "Your credit score increased by 14 points. New score: 748 (Good). "
+            "Key factors: on-time payments (Excellent), credit utilization 17%, "
+            "0 derogatory marks. View your full credit report and score history →",
         ),
         (
             "You have a new deposit — Wells Fargo",
@@ -155,16 +155,22 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Contact us if you did not authorize this transfer.",
         ),
         (
-            "Your Venmo payment was sent",
-            "You paid Alex $45.00 for 'Dinner last night'. "
-            "Transaction ID: VNM-9938271. Your updated Venmo balance: $12.50. "
-            "View or dispute this transaction in the Venmo app.",
+            "Your Geico auto insurance renewal — payment due April 1",
+            "Your 6-month auto insurance policy renews on April 1, 2026. "
+            "Renewal premium: $612.00 for two vehicles. Your current policy expires March 31. "
+            "Log in to update your payment method or review your coverage options.",
         ),
         (
             "Autopay scheduled: $238.00 — Discover Card",
             "Your autopay of $238.00 (minimum payment) is scheduled to process "
             "on March 28 from your checking account ending in 9900. "
             "Current statement balance: $1,188.44.",
+        ),
+        (
+            "Your 401(k) quarterly statement — Vanguard",
+            "Your Q1 2026 account statement is now available. "
+            "Account balance: $47,382.14. Contributions this quarter: $2,100.00. "
+            "Employer match: $1,050.00. Investment gain/loss: +$1,843.22. View statement →",
         ),
     ],
 
@@ -257,11 +263,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "View the diff and leave your feedback on GitHub.",
         ),
         (
-            "Your weekly Slack digest",
-            "Here's what happened in your Slack workspace while you were away. "
-            "Channels with new activity: #engineering (42 messages), "
-            "#product (18 messages), #general (7 messages). "
-            "You have 3 direct messages.",
+            "Re: Production incident — payments service down",
+            "Hi Kevin, we're seeing a spike in 500 errors on the payments service since 2:15 PM. "
+            "Looks like it might be related to your last deploy. Can you roll back or investigate ASAP? "
+            "Looping in Sam and the on-call team. Datadog shows ~40% error rate. — Alex",
         ),
         (
             "Zoom: Meeting recording available — All Hands March 2026",
@@ -288,10 +293,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Please complete signing by March 30, 2026.",
         ),
         (
-            "Confluence: Page updated — 'API Design Guidelines v2'",
-            "The page 'API Design Guidelines v2' was updated by Priya Nair. "
-            "Changes: Added rate limiting section, updated auth examples. "
-            "View the page to see what changed and leave a comment.",
+            "Your expense report has been approved — Concur",
+            "Your expense report 'Austin Sales Conference — March 2026' has been approved. "
+            "Total approved: $1,204.50 (flights, hotel, meals). Reimbursement will be "
+            "included in your next paycheck or direct-deposited within 3–5 business days.",
         ),
         (
             "Your onboarding checklist — Day 1 at Acme Corp",
@@ -375,10 +380,16 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Open Snapchat to view your snaps and streaks.",
         ),
         (
-            "GitHub: daniela-dev starred your repository",
-            "daniela-dev starred your repository 'kht/labl'. "
-            "Your repository now has 48 stars. "
-            "Check out daniela-dev's profile and repositories on GitHub.",
+            "You're invited: Kevin's surprise birthday party — April 19",
+            "Hi! You've been invited to a surprise birthday party for Kevin. "
+            "Date: Saturday, April 19 at 7:00 PM. Location: The Rooftop Bar, 123 Mission St. "
+            "RSVP by April 15 and keep it a surprise! Organized by Mia and Jordan.",
+        ),
+        (
+            "Eventbrite: Your ticket for 'AI Demo Night SF' is confirmed",
+            "You're registered! Event: AI Demo Night SF — April 10, 2026 at 7 PM. "
+            "Location: 415 Mission St, San Francisco. Your QR code ticket is attached. "
+            "Invited by Marcus Chen. See who else is going →",
         ),
     ],
 
@@ -483,10 +494,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "to regain access. This lock will expire in 24 hours.",
         ),
         (
-            "Your GitHub SSH key was added",
-            "A new SSH key was added to your account on March 25, 2026 at 10:31 AM. "
-            "Key name: 'MacBook Pro 2025'. If you added this key, no action is needed. "
-            "If you did not, remove the key and enable two-factor authentication.",
+            "Blocked sign-in attempt from Moscow, Russia",
+            "Someone tried to sign in to your account from an unrecognized location: "
+            "Moscow, Russia at 3:42 AM. We blocked this attempt. "
+            "If this wasn't you, change your password and review your recent activity immediately.",
         ),
         (
             "Your Apple ID was used to sign in on a new device",
@@ -501,10 +512,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "If you didn't change your password, please secure your account immediately.",
         ),
         (
-            "Your account has been created — welcome to Notion",
-            "Welcome! Your Notion account is ready. Email: kevin@example.com. "
-            "Get started by creating your first page or exploring our templates. "
-            "If you didn't create this account, contact support.",
+            "Important: Your info was found in a data breach",
+            "We detected your email address in a recent data breach from DataCorp (March 2026). "
+            "Exposed information: email address, phone number, hashed password. "
+            "We recommend changing your password on any site where you reuse these credentials.",
         ),
         (
             "Dropbox: A new device was linked to your account",
@@ -513,16 +524,16 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Not you? Remove this device and update your password.",
         ),
         (
-            "Your subscription has been cancelled",
-            "We've processed your cancellation request. Your Adobe Creative Cloud "
-            "subscription has been cancelled effective April 1, 2026. "
-            "You'll retain access until then. We're sorry to see you go.",
+            "Your two-factor authentication backup codes",
+            "Two-factor authentication has been enabled on your account. "
+            "Save these one-time backup codes in a secure location. Each code can only be used once. "
+            "If you did not enable two-factor authentication, secure your account immediately.",
         ),
         (
-            "API key generated — OpenAI",
-            "A new API key was created for your OpenAI account. "
-            "Key name: 'prod-server-key'. Created: March 25, 2026 at 11:04 AM. "
-            "If you did not generate this key, revoke it immediately in your dashboard.",
+            "Your account access has been revoked — action required",
+            "Your access to the shared workspace has been removed by an administrator. "
+            "If you believe this was done in error, contact your account admin. "
+            "All active sessions have been signed out and your permissions revoked.",
         ),
     ],
 }
