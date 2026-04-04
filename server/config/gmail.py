@@ -10,6 +10,8 @@ from fastapi import HTTPException
 
 from config.db import update_one
 
+_MAX_RATE_LIMIT_RETRIES = 4
+
 logger = logging.getLogger(__name__)
 
 GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -64,46 +66,71 @@ class GmailClient:
             )
 
     # ------------------------------------------------------------------
-    # Low-level HTTP helpers (auto-refresh on 401)
+    # Low-level HTTP helpers (auto-refresh on 401, backoff on 429)
     # ------------------------------------------------------------------
 
-    async def _get(self, url: str, params: dict | None = None) -> dict:
-        for attempt in range(2):
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict | None = None,
+        json: dict | None = None,
+        ok_statuses: tuple[int, ...] = (200,),
+    ) -> dict:
+        """Send an authenticated request, handling token refresh and rate-limit backoff.
+
+        - 401 on first attempt → refresh token, retry once.
+        - 429 → honour Retry-After header if present, otherwise exponential backoff
+          (2 ** attempt seconds); retries up to _MAX_RATE_LIMIT_RETRIES times.
+        """
+        refreshed = False
+        rate_attempts = 0
+
+        while True:
             async with httpx.AsyncClient() as client:
-                resp = await client.get(
+                resp = await client.request(
+                    method,
                     url,
                     params=params,
-                    headers={"Authorization": f"Bearer {self.access_token}"},
-                )
-            if resp.status_code == 401 and attempt == 0:
-                await self._refresh_access_token()
-                continue
-            if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=resp.status_code,
-                    detail=f"Gmail API error: {resp.text}",
-                )
-            return resp.json()
-        raise HTTPException(status_code=401, detail="Gmail API authentication failed")
-
-    async def _post(self, url: str, json: dict) -> dict:
-        for attempt in range(2):
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    url,
                     json=json,
                     headers={"Authorization": f"Bearer {self.access_token}"},
                 )
-            if resp.status_code == 401 and attempt == 0:
+
+            if resp.status_code == 401 and not refreshed:
                 await self._refresh_access_token()
+                refreshed = True
                 continue
-            if resp.status_code not in (200, 201):
+
+            if resp.status_code == 429 and rate_attempts < _MAX_RATE_LIMIT_RETRIES:
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after is not None:
+                    try:
+                        wait = float(retry_after)
+                    except ValueError:
+                        wait = 2 ** rate_attempts
+                else:
+                    wait = 2 ** rate_attempts
+                logger.warning(
+                    "Gmail API rate limited (429). Waiting %.1fs before retry %d/%d.",
+                    wait, rate_attempts + 1, _MAX_RATE_LIMIT_RETRIES,
+                )
+                await asyncio.sleep(wait)
+                rate_attempts += 1
+                continue
+
+            if resp.status_code not in ok_statuses:
                 raise HTTPException(
                     status_code=resp.status_code,
                     detail=f"Gmail API error: {resp.text}",
                 )
             return resp.json()
-        raise HTTPException(status_code=401, detail="Gmail API authentication failed")
+
+    async def _get(self, url: str, params: dict | None = None) -> dict:
+        return await self._request("GET", url, params=params, ok_statuses=(200,))
+
+    async def _post(self, url: str, json: dict) -> dict:
+        return await self._request("POST", url, json=json, ok_statuses=(200, 201))
 
     # ------------------------------------------------------------------
     # Messages

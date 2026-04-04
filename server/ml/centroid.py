@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 # Emails needed before graduating from single medoid to k-means clusters.
-# 30 gives a stable corpus before splitting — 20 was too few for reliable clustering.
 CLUSTER_THRESHOLD = 30
 # Hard cap on number of clusters regardless of email count.
 K_MAX = 5

@@ -18,8 +18,15 @@ SUBSCRIPTION_LABEL = "Subscription List"
 
 
 def build_email_text(subject: str, body: str) -> str:
-    """Combine subject and body into a single embedding input."""
-    return f"{subject}\n\n{body}".strip()
+    """Combine subject and body into a single embedding input.
+
+    The subject is repeated to double its weight in the token stream — it is
+    typically the densest classification signal but would otherwise be drowned
+    out by a long body. Body is capped at 600 chars to keep the model focused
+    on the opening content rather than footers and legal disclaimers.
+    """
+    body_snippet = body[:600].strip()
+    return f"Subject: {subject}\nSubject: {subject}\n\n{body_snippet}".strip()
 
 
 def _check_rules(

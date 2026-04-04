@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "BAAI/bge-small-en-v1.5"
+MODEL_NAME = "BAAI/bge-base-en-v1.5"
 
 try:
     from sentence_transformers import SentenceTransformer
