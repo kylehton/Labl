@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from app.repositories.users import get_user_by_id, update_user_document
 from config.gmail import GmailClient
 from config.session import COOKIE_NAME
+from dependencies.limiter import limiter
 from dependencies.session_auth import require_auth
 from app.models.label import Label
 from ml.pipeline import batch_process_emails, confirm_label_batch
@@ -89,6 +90,7 @@ async def _get_or_create_suggested_label_id(
 # ------------------------------------------------------------------
 
 @router.get("/messages")
+@limiter.limit("2/minute")
 async def get_messages(
     request: Request,
     session: dict = Depends(require_auth),

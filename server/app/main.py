@@ -3,12 +3,15 @@ from contextlib import asynccontextmanager
 import os
 import uvicorn
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api import gmail, auth, user as user_api
 from app.repositories.users import ensure_user_indexes
 from app.repositories.presets import seed_preset_collection
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
+from dependencies.limiter import limiter
 from ml.embeddings import load_model
 
 from starlette.middleware.cors import CORSMiddleware
@@ -27,6 +30,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
