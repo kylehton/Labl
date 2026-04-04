@@ -22,6 +22,26 @@ HYBRID_ALPHA = 0.7
 # Prevents ambiguous emails (multiple labels score similarly) from being auto-labeled.
 LABEL_MARGIN = 0.12
 
+# Confidence-adaptive threshold parameters.
+# Labels with confidence above ANCHOR get a lower threshold (easier to auto-label);
+# labels below ANCHOR get a higher threshold (more conservative).
+# SCALE controls how many threshold units shift per confidence unit of deviation.
+# MAX_SHIFT caps the adjustment so a single noisy label can't move the bar too far.
+_CONFIDENCE_ANCHOR = 0.80
+_CONFIDENCE_SCALE = 0.50
+_CONFIDENCE_MAX_SHIFT = 0.08
+
+
+def _effective_threshold(confidence: float, base: float) -> float:
+    """Return a per-label auto-label threshold adjusted by corpus confidence.
+
+    High confidence (tight corpus) → threshold is lowered slightly.
+    Low confidence (noisy corpus) → threshold is raised slightly.
+    """
+    shift = (confidence - _CONFIDENCE_ANCHOR) * _CONFIDENCE_SCALE
+    shift = max(-_CONFIDENCE_MAX_SHIFT, min(_CONFIDENCE_MAX_SHIFT, shift))
+    return base - shift
+
 # BM25 model cache: (label_name, corpus_len) → BM25Okapi instance.
 # Corpus length is used as a cheap invalidation key — when new emails are
 # confirmed the corpus grows, the key changes, and the stale entry is evicted.
@@ -172,7 +192,9 @@ def find_best_label(
         (s for n, s in all_scores.items() if n != best_name),
         default=0.0,
     )
-    confident = best_score >= threshold and (best_score - second_score) >= LABEL_MARGIN
+    best_label = candidates[best_name]
+    effective = _effective_threshold(best_label.confidence, threshold)
+    confident = best_score >= effective and (best_score - second_score) >= LABEL_MARGIN
     result = {
         "label_name": best_name,
         "score": best_score,

@@ -320,13 +320,7 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
 
     "Social": [
         (
-            "LinkedIn: You appeared in 8 searches this week",
-            "Your profile is getting noticed! You appeared in 8 searches in the past "
-            "7 days. Recruiters from 3 companies viewed your profile. "
-            "See who's looking and grow your network.",
-        ),
-        (
-            "Twitter/X: @techcrunch mentioned you",
+            "Twitter/X: @techcrunch mentioned you in a reply",
             "@techcrunch replied to your tweet: 'Great point on LLM latency — "
             "completely agree with your take.' Your tweet now has 47 likes and "
             "12 retweets. View the conversation →",
@@ -338,22 +332,10 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "See your latest activity in the Instagram app.",
         ),
         (
-            "Reddit: Your post is trending in r/programming",
-            "Your post 'How I built a side project in a weekend using Claude' "
-            "has reached the front page of r/programming. "
-            "Current score: 1.4k upvotes, 230 comments. View post →",
-        ),
-        (
             "Facebook: Marcus Rodriguez sent you a friend request",
             "Marcus Rodriguez sent you a friend request. "
             "You have 12 mutual friends including Sarah Chen, David Kim, and others. "
             "Accept or decline in the Facebook app.",
-        ),
-        (
-            "YouTube: A channel you follow posted a new video",
-            "Fireship just uploaded: 'I built a full-stack app in 10 minutes with AI'. "
-            "This video is trending in Tech & Programming. "
-            "Watch now or save it to your Watch Later playlist.",
         ),
         (
             "TikTok: Your video has 10,000 views",
@@ -380,16 +362,34 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Open Snapchat to view your snaps and streaks.",
         ),
         (
-            "You're invited: Kevin's surprise birthday party — April 19",
-            "Hi! You've been invited to a surprise birthday party for Kevin. "
-            "Date: Saturday, April 19 at 7:00 PM. Location: The Rooftop Bar, 123 Mission St. "
-            "RSVP by April 15 and keep it a surprise! Organized by Mia and Jordan.",
+            "Instagram: maya_j sent you a direct message",
+            "maya_j sent you a DM: 'omg did you see this?? 😭' "
+            "Tap to reply in the Instagram app. "
+            "You also have 2 unread message requests from new accounts.",
         ),
         (
-            "Eventbrite: Your ticket for 'AI Demo Night SF' is confirmed",
-            "You're registered! Event: AI Demo Night SF — April 10, 2026 at 7 PM. "
-            "Location: 415 Mission St, San Francisco. Your QR code ticket is attached. "
-            "Invited by Marcus Chen. See who else is going →",
+            "Facebook: Jordan tagged you in a photo",
+            "Jordan tagged you in a photo at Griffith Observatory. "
+            "3 people have reacted to this photo: Sarah, Mike, and +1 more. "
+            "See the photo and manage your tag →",
+        ),
+        (
+            "Reddit: u/devguru99 replied to your comment in r/cscareerquestions",
+            "u/devguru99 replied to your comment: 'Totally agree — the system design "
+            "round is usually the hardest part for new grads.' "
+            "Your comment has 14 upvotes. View the full thread →",
+        ),
+        (
+            "Twitter/X: 5 new followers today",
+            "You have 5 new followers: @ml_research, @jane_codes, @kevin_builds, "
+            "@techdigest, and 1 more. Check out their profiles and follow back. "
+            "Your tweet from yesterday now has 142 impressions.",
+        ),
+        (
+            "LinkedIn: Sofia Reyes sent you a message",
+            "Sofia Reyes (UX Designer at Figma) sent you a LinkedIn message: "
+            "'Hey! I saw your post about design systems — really resonated. "
+            "Would love to connect and chat sometime.' Reply in LinkedIn →",
         ),
     ],
 
@@ -459,6 +459,24 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "You've earned cashback from your recent purchases! "
             "Nike.com: $3.20. Booking.com: $5.27. Total available: $8.47. "
             "Cash out via PayPal or check on your next Big Fat Check date.",
+        ),
+        (
+            "Walk into spring. New arrivals just dropped — Crocs",
+            "The season's freshest styles are here. Shop the new Classic Clog "
+            "colorways and limited-edition collabs before they sell out. "
+            "Free shipping on orders over $50. Explore new arrivals →",
+        ),
+        (
+            "New season, new fits. Shop the Spring Collection — Levi's",
+            "Fresh denim for a fresh start. Introducing the Spring 2026 Collection — "
+            "new cuts, washes, and silhouettes. Shop men's and women's styles now. "
+            "Members get free returns. Find your fit →",
+        ),
+        (
+            "Your next obsession just arrived — ASOS New In",
+            "Over 500 new styles added this week. From going-out tops to "
+            "everyday sneakers, we've got your wardrobe covered. "
+            "Shop new in now — new drops every day.",
         ),
     ],
 
@@ -534,6 +552,95 @@ PRESET_SEEDS: dict[str, list[tuple[str, str]]] = {
             "Your access to the shared workspace has been removed by an administrator. "
             "If you believe this was done in error, contact your account admin. "
             "All active sessions have been signed out and your permissions revoked.",
+        ),
+    ],
+
+    "Recruiting & Interviews": [
+        (
+            "Application received — Software Engineer New Grad 2026 (Requisition #REQ-SWE-NG-0412)",
+            "Thank you for submitting your application through Greenhouse for the "
+            "Software Engineer, New Grad 2026 role at Stripe. Our talent acquisition team "
+            "will review your resume and reach out if your background aligns with our "
+            "current headcount. Requisition #: REQ-SWE-NG-2026-0412.",
+        ),
+        (
+            "HackerRank Online Assessment — Amazon SDE Intern (Algorithms & Data Structures)",
+            "You have been invited to complete a HackerRank online assessment for the "
+            "SDE Intern role at Amazon. The assessment contains 2 algorithmic problems "
+            "covering dynamic programming and graph traversal. Time limit: 90 minutes. "
+            "Per our NDA, do not share problem statements during or after the assessment.",
+        ),
+        (
+            "University Recruiting — Google SWE New Grad Cohort, reaching out re: headcount",
+            "Hi Kyle, I'm a university recruiter at Google and came across your profile. "
+            "We have open headcount for our New Grad SWE cohort starting July 2026 on the "
+            "Search Infrastructure team. Would you be available for a 20-minute exploratory "
+            "call? I can send a Calendly link. — Priya, University Talent Acquisition",
+        ),
+        (
+            "Technical Phone Screen Scheduled — Meta, CoderPad, April 8 at 2 PM PST",
+            "Your 45-minute technical phone screen with Meta has been scheduled. "
+            "Interviewer: David Chen (Staff Engineer, Infra). Format: one LeetCode-style "
+            "coding problem on CoderPad. You will receive the CoderPad session link "
+            "15 minutes before your interview. Reply with any scheduling conflicts.",
+        ),
+        (
+            "Virtual Onsite Confirmed — Apple SWE Internship, 4 rounds: DSA, systems design, behavioral",
+            "Your virtual onsite interview loop with Apple is confirmed for April 12. "
+            "Round 1 (10:00 AM): Data Structures & Algorithms. "
+            "Round 2 (11:00 AM): Systems Design. Round 3 (1:00 PM): Behavioral. "
+            "Round 4 (2:00 PM): Hiring Manager. Each session is 45 minutes via Zoom.",
+        ),
+        (
+            "Offer Letter — Software Engineer Intern, Airbnb Summer 2026 · $60/hr + RSU",
+            "Dear Kyle, we are delighted to extend an offer for Software Engineer Intern "
+            "at Airbnb for Summer 2026. Compensation: $60.00/hr. Housing stipend: $2,500/mo. "
+            "Relocation: $5,000 one-time. Countersign via DocuSign by April 20. "
+            "Offer contingent on successful completion of a background check.",
+        ),
+        (
+            "Interview loop decision — not moving forward, Software Engineer New Grad, Uber",
+            "Hi Kyle, thank you for completing the interview loop for the Software Engineer "
+            "New Grad role at Uber. After careful evaluation of your performance across all "
+            "rounds, we have decided to move forward with other candidates whose qualifications "
+            "more closely match our current requirements. We will retain your resume on file.",
+        ),
+        (
+            "Return Offer — Full-Time Software Engineer, Palantir · $145k base + $50k RSU, 4-yr vest",
+            "Hi Kyle, following your internship we are pleased to extend a full-time return offer "
+            "for Software Engineer at Palantir. Total compensation: $145,000 base + $50,000 RSU "
+            "grant (4-year vest, 1-year cliff) + $15,000 signing bonus. "
+            "Please indicate acceptance or declination by May 1.",
+        ),
+        (
+            "Background Check Initiated — Sterling on behalf of LinkedIn, employment history required",
+            "LinkedIn has initiated a pre-employment background check through Sterling. "
+            "Log in to Sterling's candidate portal to consent, verify your identity, and "
+            "submit your employment history. Estimated turnaround: 3–5 business days. "
+            "Do not begin employment until your background check has cleared.",
+        ),
+        (
+            "Karat Interview on behalf of Twitch — Engineering Fundamentals, 60 min coding round",
+            "Your Karat technical interview on behalf of Twitch is confirmed for April 9 "
+            "at 3:00 PM PST. Interview type: Engineering Fundamentals (coding). "
+            "Duration: 60 minutes. You will solve algorithm problems while narrating your "
+            "thought process. Your interviewer will be a Karat-certified engineer. "
+            "Join at: karat.com/interview/your-session.",
+        ),
+        (
+            "New Grad SWE job alert — Stripe, Figma, Databricks, 8 roles matching your profile",
+            "Hi Kyle, 8 new Software Engineer roles match your Glassdoor job alert. "
+            "Highlights: Software Engineer II at Stripe (NYC) — Python/Go, 0–2 yrs exp. "
+            "Frontend Engineer at Figma (SF) — React, TypeScript, new grad welcome. "
+            "SWE New Grad at Databricks (Remote). Apply directly through Glassdoor.",
+        ),
+        (
+            "New Grad Offer — SWE II, Microsoft Azure Cohort 2026A · $135k + $70k RSU",
+            "Hi Kyle, congratulations on completing your interview loop. We are pleased to "
+            "invite you to join Microsoft's New Graduate Software Engineer program, Cohort 2026A. "
+            "Role: SWE II, Azure Compute. Location: Redmond, WA (hybrid). "
+            "Compensation: $135,000 base + $70,000 RSU (4-year vest, 1-year cliff) + "
+            "$20,000 signing bonus. Offer expires April 30, 2026.",
         ),
     ],
 }

@@ -4,6 +4,7 @@ import logging
 from app.models.label import Label
 from ml.centroid import (
     CLUSTER_THRESHOLD,
+    compute_confidence,
     compute_medoid,
     fit_kmeans,
     k_for_count,
@@ -199,6 +200,7 @@ def seed_label(seed_texts: list[tuple[str, str]]) -> dict:
         "medoid": medoid,
         "phase": "bootstrap",
         "count": len(embeddings),
+        "confidence": compute_confidence(embeddings, medoid=medoid),
     }
 
 
@@ -214,21 +216,25 @@ def confirm_label_batch(label: Label, new_items: list[tuple[list[float], str]]) 
     new_count = label.count + len(new_items)
 
     if new_count < CLUSTER_THRESHOLD:
+        medoid = compute_medoid(new_embeddings)
         return {
             "embeddings": new_embeddings,
             "texts": new_texts,
-            "medoid": compute_medoid(new_embeddings),
+            "medoid": medoid,
             "phase": "bootstrap",
             "count": new_count,
+            "confidence": compute_confidence(new_embeddings, medoid=medoid),
         }
 
     k = k_for_count(new_count)
+    clusters = fit_kmeans(new_embeddings, k)
     return {
         "embeddings": new_embeddings,
         "texts": new_texts,
-        "clusters": fit_kmeans(new_embeddings, k),
+        "clusters": clusters,
         "phase": "mature",
         "count": new_count,
+        "confidence": compute_confidence(new_embeddings, clusters=clusters),
     }
 
 
@@ -246,19 +252,23 @@ def confirm_label(label: Label, new_vector: list[float], new_text: str) -> dict:
     new_count = label.count + 1
 
     if new_count < CLUSTER_THRESHOLD:
+        medoid = compute_medoid(new_embeddings)
         return {
             "embeddings": new_embeddings,
             "texts": new_texts,
-            "medoid": compute_medoid(new_embeddings),
+            "medoid": medoid,
             "phase": "bootstrap",
             "count": new_count,
+            "confidence": compute_confidence(new_embeddings, medoid=medoid),
         }
 
     k = k_for_count(new_count)
+    clusters = fit_kmeans(new_embeddings, k)
     return {
         "embeddings": new_embeddings,
         "texts": new_texts,
-        "clusters": fit_kmeans(new_embeddings, k),
+        "clusters": clusters,
         "phase": "mature",
         "count": new_count,
+        "confidence": compute_confidence(new_embeddings, clusters=clusters),
     }

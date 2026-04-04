@@ -28,6 +28,31 @@ def compute_medoid(embeddings: list[list[float]]) -> list[float]:
     return arr[medoid_idx].tolist()
 
 
+def compute_confidence(
+    embeddings: list[list[float]],
+    medoid: list[float] | None = None,
+    clusters: list[list[float]] | None = None,
+) -> float:
+    """Mean cosine similarity of all embeddings to their representative vector(s).
+
+    Bootstrap phase: mean similarity to the medoid.
+    Mature phase: mean of each embedding's max similarity across cluster centers.
+    Returns 0.0 if no representative vector is available.
+    """
+    if not embeddings:
+        return 0.0
+    arr = np.array(embeddings, dtype=np.float32)
+    if clusters is not None:
+        centers = np.array(clusters, dtype=np.float32)
+        sims = (arr @ centers.T).max(axis=1)
+    elif medoid is not None:
+        med = np.array(medoid, dtype=np.float32)
+        sims = arr @ med
+    else:
+        return 0.0
+    return float(np.mean(sims))
+
+
 def fit_kmeans(embeddings: list[list[float]], k: int) -> list[list[float]]:
     """Fit k-means and return L2-normalised cluster centers.
 
