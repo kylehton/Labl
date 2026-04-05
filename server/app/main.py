@@ -6,9 +6,10 @@ from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.api import gmail, auth, user as user_api
+from app.api import gmail, auth, user as user_api, label_records as label_records_api
 from app.repositories.users import ensure_user_indexes
 from app.repositories.presets import seed_preset_collection
+from app.repositories.label_records import ensure_indexes as ensure_label_record_indexes
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 from dependencies.limiter import limiter
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     await ensure_session_indexes()
     await ensure_user_indexes()
+    await ensure_label_record_indexes()
     load_model()
     await seed_preset_collection()
     yield
@@ -53,6 +55,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(user_api.router)
 app.include_router(gmail.router)
+app.include_router(label_records_api.router)
 
 @app.get("/")
 def read_root():

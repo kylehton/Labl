@@ -27,6 +27,19 @@ async def connect_to_mongo() -> None:
         _db = _client[MONGO_DB_NAME]
 
 
+async def reconnect_for_worker() -> None:
+    """Create a fresh MongoDB connection for a Celery worker process.
+
+    Celery workers are forked after the main process — any existing motor client
+    is unusable in the child. Call this at the start of each task to ensure the
+    worker has its own connection pool.
+    """
+    global _client, _db
+    _client = None
+    _db = None
+    await connect_to_mongo()
+
+
 async def close_mongo_connection() -> None:
     global _client
     if _client:
