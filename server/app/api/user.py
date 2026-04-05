@@ -1,4 +1,5 @@
 """Current user document API: get/update profile, labels, settings, and label seeding."""
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
@@ -103,10 +104,8 @@ async def seed_label(
         session_id=request.cookies.get(COOKIE_NAME),
     )
 
-    seed_texts: list[tuple[str, str]] = []
-    for mid in body.message_ids:
-        msg = await gmail.get_message_body(mid)
-        seed_texts.append((msg.get("subject", ""), msg.get("body", "")))
+    msgs = await asyncio.gather(*[gmail.get_message_body(mid) for mid in body.message_ids])
+    seed_texts = [(m.get("subject", ""), m.get("body", "")) for m in msgs]
 
     # Compute medoid and persist
     fields = compute_seed_label(seed_texts)

@@ -9,3 +9,7 @@
 pytest.ini
 
 todo.txt
+
+APPLICATION_OVERVIEW.md
+FUNCTIONS.md
+MEMORY.md
