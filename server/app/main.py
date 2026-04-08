@@ -13,7 +13,6 @@ from app.repositories.label_records import ensure_indexes as ensure_label_record
 from config.db import connect_to_mongo, close_mongo_connection
 from config.session import ensure_session_indexes
 from dependencies.limiter import limiter
-from ml.embeddings import load_model
 
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -25,7 +24,6 @@ async def lifespan(app: FastAPI):
     await ensure_session_indexes()
     await ensure_user_indexes()
     await ensure_label_record_indexes()
-    load_model()
     await seed_preset_collection()
     yield
     await close_mongo_connection()

@@ -13,11 +13,27 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from celery.signals import worker_ready
+
 from config.celery_app import celery_app
 from config.db import reconnect_for_worker
 
 logger = logging.getLogger(__name__)
 
+
+@worker_ready.connect
+def on_worker_ready(**_kwargs):
+    """Load the embedding model once when the worker process starts.
+
+    This avoids reloading (and re-checking HuggingFace) on every task invocation.
+    The model is held in the module-level _model global in ml/embeddings.py for
+    the lifetime of this worker process.
+    """
+    from ml.embeddings import load_model
+    logger.info("Worker ready — loading embedding model...")
+    load_model()
+    logger.info("Embedding model loaded.")
+ 
 
 @celery_app.task(bind=True, name="tasks.labeling.run_labeling_pipeline")
 def run_labeling_pipeline(
