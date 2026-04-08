@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface User {
   id: string;
@@ -21,10 +21,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || "DNE";
 
+const PUBLIC_ROUTES = ["/landing-page", "/privacy", "/terms", "/security"];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const path = usePathname();
 
   // Clear session on server, clear local state, and redirect to landing
   const forceLogoutAndRedirect = async () => {
@@ -65,8 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (PUBLIC_ROUTES.includes(path)) {
+      setLoading(false);
+      return;
+    } else {
     checkAuthStatus();
-  }, []);
+    }
+  }, [path]);
 
   // Redirect user to backend login endpoint
   const login = () => {
