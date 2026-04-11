@@ -216,6 +216,7 @@ async def _run_async(
 
     # (msg_id, label_name, action, source, score, vector) — collected for record writes
     record_queue: list[tuple[str, str, str, str, float | None, list[float] | None, str]] = []
+    record_queue_seen: set[tuple[str, str]] = set()
 
     def _bucket_label(
         label_name: str,
@@ -233,10 +234,14 @@ async def _run_async(
                 label_actions.setdefault(label_name, []).append((msg_id, vector, text))
             else:
                 direct_labels.append((msg_id, lbl.gmail_label_id))
-            record_queue.append((msg_id, label_name, "label", source, score, vector, subject))
+            if (msg_id, label_name) not in record_queue_seen:
+                record_queue_seen.add((msg_id, label_name))
+                record_queue.append((msg_id, label_name, "label", source, score, vector, subject))
         elif action == "suggest" and lbl:
             suggest_tasks.append((msg_id, label_name))
-            record_queue.append((msg_id, label_name, "suggest", source, score, vector, subject))
+            if (msg_id, label_name) not in record_queue_seen:
+                record_queue_seen.add((msg_id, label_name))
+                record_queue.append((msg_id, label_name, "suggest", source, score, vector, subject))
 
     for (msg, full), result in zip(pipeline_msg_refs, pipeline_results):
         if result is None:
