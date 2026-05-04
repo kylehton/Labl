@@ -1,11 +1,13 @@
 """Label record endpoints — history, undo, confirm, reject."""
 import logging
 from datetime import UTC, datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.repositories.label_records import (
     get_record,
+    get_recent_grouped_emails,
     get_records_for_user,
     update_record_status,
 )
@@ -31,6 +33,20 @@ def _gmail_client(session: dict, request: Request) -> GmailClient:
         refresh_token=tokens.get("refresh_token"),
         session_id=request.cookies.get(COOKIE_NAME),
     )
+
+
+@router.get("/recent")
+async def get_recent_emails(
+    session: dict = Depends(require_auth),
+    limit: Optional[int] = Query(default=None, gt=0),
+):
+    """Return recent emails grouped by message, with confirmed and suggested label arrays.
+
+    Delegates grouping and filtering to a MongoDB aggregation — no Python heuristics.
+    """
+    user_id = session["user"]["user_id"]
+    emails = await get_recent_grouped_emails(user_id, limit=limit)
+    return {"emails": emails}
 
 
 @router.get("")

@@ -72,6 +72,70 @@ async def update_record_status(
     return _to_record(doc)
 
 
+async def get_recent_grouped_emails(
+    user_id: str,
+    limit: Optional[int] = 20,
+) -> list[dict]:
+    """Return recent emails grouped by message, with confirmed and suggested label arrays.
+
+    Runs a MongoDB aggregation so grouping, filtering, and sorting all happen in the DB.
+    Only active statuses (applied, confirmed, suggested) are included — rejected and undone
+    are excluded so stale labels don't appear on the dashboard.
+    """
+    pipeline = [
+        {"$match": {
+            "user_id": user_id,
+            "status": {"$nin": ["rejected", "undone"]},
+        }},
+        {"$group": {
+            "_id": "$gmail_message_id",
+            "subject": {"$first": "$subject"},
+            "applied_at": {"$max": "$applied_at"},
+            "records": {"$push": {
+                "record_id": {"$toString": "$_id"},
+                "label_name": "$label_name",
+                "status": "$status",
+            }},
+        }},
+        {"$sort": {"applied_at": DESCENDING}},
+        *([{"$limit": limit}] if limit is not None else []),
+        {"$project": {
+            "_id": 0,
+            "gmail_message_id": "$_id",
+            "subject": 1,
+            "applied_at": 1,
+            "confirmed_labels": {
+                "$map": {
+                    "input": {
+                        "$filter": {
+                            "input": "$records",
+                            "as": "r",
+                            "cond": {"$in": ["$$r.status", ["applied", "confirmed"]]},
+                        }
+                    },
+                    "as": "r",
+                    "in": {"record_id": "$$r.record_id", "label_name": "$$r.label_name"},
+                }
+            },
+            "suggested_labels": {
+                "$map": {
+                    "input": {
+                        "$filter": {
+                            "input": "$records",
+                            "as": "r",
+                            "cond": {"$eq": ["$$r.status", "suggested"]},
+                        }
+                    },
+                    "as": "r",
+                    "in": {"record_id": "$$r.record_id", "label_name": "$$r.label_name"},
+                }
+            },
+        }},
+    ]
+    cursor = _get_col().aggregate(pipeline)
+    return await cursor.to_list(length=None)
+
+
 async def ensure_indexes() -> None:
     col = _get_col()
     await col.create_index([("user_id", DESCENDING), ("applied_at", DESCENDING)])

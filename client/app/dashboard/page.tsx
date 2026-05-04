@@ -13,14 +13,12 @@ export default function Dashboard() {
 
   const [labels, setLabels] = useState<string[]>([])
   const [newLabel, setNewLabel] = useState("")
-  const [recentEmails] = useState<{
-    id: number
-    sender: string
+  const [recentEmails, setRecentEmails] = useState<{
+    gmail_message_id: string
     subject: string
-    confirmedLabel?: string
-    suggestedLabel?: string
-    encrypted?: boolean
-    priority?: boolean
+    confirmed_labels: { record_id: string; label_name: string }[]
+    suggested_labels: { record_id: string; label_name: string }[]
+    applied_at: string
   }[]>([])
 
   useEffect(() => {
@@ -52,6 +50,51 @@ export default function Dashboard() {
 
   const removeLabel = (label: string) => {
     setLabels(labels.filter((l) => l !== label))
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated || loading) return
+    authFetch(`${SERVER_URL}/api/label-records/recent`)
+      .then((res) => res.json())
+      .then((data) => setRecentEmails(data.emails ?? []))
+      .catch(() => {})
+  }, [isAuthenticated, loading])
+
+  const handleUndo = async (recordId: string, msgId: string) => {
+    await authFetch(`${SERVER_URL}/api/label-records/${recordId}/undo`, { method: "POST" })
+    setRecentEmails((prev) =>
+      prev.map((e) =>
+        e.gmail_message_id === msgId
+          ? { ...e, confirmed_labels: e.confirmed_labels.filter((l) => l.record_id !== recordId) }
+          : e
+      ).filter((e) => e.confirmed_labels.length > 0 || e.suggested_labels.length > 0)
+    )
+  }
+
+  const handleConfirm = async (recordId: string, msgId: string) => {
+    await authFetch(`${SERVER_URL}/api/label-records/${recordId}/confirm`, { method: "POST" })
+    setRecentEmails((prev) =>
+      prev.map((e) => {
+        if (e.gmail_message_id !== msgId) return e
+        const confirmed = e.suggested_labels.find((l) => l.record_id === recordId)
+        return {
+          ...e,
+          suggested_labels: e.suggested_labels.filter((l) => l.record_id !== recordId),
+          confirmed_labels: confirmed ? [...e.confirmed_labels, confirmed] : e.confirmed_labels,
+        }
+      })
+    )
+  }
+
+  const handleReject = async (recordId: string, msgId: string) => {
+    await authFetch(`${SERVER_URL}/api/label-records/${recordId}/reject`, { method: "POST" })
+    setRecentEmails((prev) =>
+      prev.map((e) =>
+        e.gmail_message_id === msgId
+          ? { ...e, suggested_labels: e.suggested_labels.filter((l) => l.record_id !== recordId) }
+          : e
+      ).filter((e) => e.confirmed_labels.length > 0 || e.suggested_labels.length > 0)
+    )
   }
 
   return (
@@ -89,13 +132,7 @@ export default function Dashboard() {
             <span className="material-symbols-outlined" style={{ fontSize: 22 }}>history</span>
             <span className="text-sm font-semibold tracking-wide uppercase">Activity</span>
           </a>
-          <a
-            className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:text-red-600 transition-all active:translate-x-1 duration-200"
-            href="#"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>analytics</span>
-            <span className="text-sm font-semibold tracking-wide uppercase">Insights</span>
-          </a>
+         
         </nav>
 
         <div className="pt-6 mt-6 border-t border-slate-200 space-y-1">
@@ -152,45 +189,55 @@ export default function Dashboard() {
               ) : (
                 recentEmails.map((email) => (
                   <div
-                    key={email.id}
+                    key={email.gmail_message_id}
                     className="group bg-slate-50 hover:bg-slate-200 transition-all duration-300 rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
                   >
                     <div className="flex flex-col gap-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-slate-900 truncate">{email.sender}</span>
-                        {email.encrypted && (
-                          <span className="text-[10px] bg-slate-200 px-1.5 py-0.5 rounded font-black tracking-widest text-slate-600 uppercase">Encrypted</span>
-                        )}
-                        {email.priority && (
-                          <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black tracking-widest uppercase">Priority</span>
-                        )}
-                      </div>
-                      <h3 className="text-sm text-slate-500 font-medium truncate">{email.subject}</h3>
+                      <a
+                        href={`https://mail.google.com/mail/u/0/#all/${email.gmail_message_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-slate-900 truncate hover:text-red-700 transition-colors cursor-pointer"
+                      >
+                        {email.subject}
+                      </a>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
-                      {email.confirmedLabel && (
-                        <div className="flex items-center gap-1.5 bg-red-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold">
-                          {email.confirmedLabel}
-                          <button className="ml-2 opacity-60 hover:opacity-100 transition-opacity" title="Undo">
+                    <div className="flex items-center flex-wrap gap-2 shrink-0">
+                      {email.confirmed_labels.map((lbl) => (
+                        <div key={lbl.record_id} className="flex items-center gap-1.5 bg-red-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold">
+                          {lbl.label_name}
+                          <button
+                            className="ml-2 opacity-60 hover:opacity-100 transition-opacity"
+                            title="Undo"
+                            onClick={() => handleUndo(lbl.record_id, email.gmail_message_id)}
+                          >
                             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>u_turn_left</span>
                           </button>
                         </div>
-                      )}
-                      {email.suggestedLabel && (
-                        <div className="flex items-center gap-1.5 bg-amber-50 text-amber-800 px-3 py-1.5 rounded-full text-xs font-bold ring-1 ring-amber-200">
+                      ))}
+                      {email.suggested_labels.map((lbl) => (
+                        <div key={lbl.record_id} className="flex items-center gap-1.5 bg-amber-50 text-amber-800 px-3 py-1.5 rounded-full text-xs font-bold ring-1 ring-amber-200">
                           <span className="material-symbols-outlined" style={{ fontSize: 14, fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-                          {email.suggestedLabel}
+                          {lbl.label_name}
                           <div className="flex items-center ml-2 border-l border-amber-300 pl-2 gap-2">
-                            <button className="hover:text-green-600 transition-colors" title="Confirm">
+                            <button
+                              className="hover:text-green-600 transition-colors"
+                              title="Confirm"
+                              onClick={() => handleConfirm(lbl.record_id, email.gmail_message_id)}
+                            >
                               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>
                             </button>
-                            <button className="hover:text-red-600 transition-colors" title="Reject">
+                            <button
+                              className="hover:text-red-600 transition-colors"
+                              title="Reject"
+                              onClick={() => handleReject(lbl.record_id, email.gmail_message_id)}
+                            >
                               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                             </button>
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 ))
@@ -224,7 +271,7 @@ export default function Dashboard() {
       <button className="fixed bottom-8 right-8 h-16 w-16 rounded-full bg-red-700 text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-105 active:scale-95 duration-150 group">
         <span className="material-symbols-outlined" style={{ fontSize: 28 }}>edit</span>
         <span className="absolute right-full mr-4 bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-          Compose
+          Create Label
         </span>
       </button>
 
