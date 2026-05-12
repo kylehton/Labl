@@ -116,7 +116,7 @@ async def _run_async(
 
     last_checked = user_doc.last_checked
     labels = user_doc.labels
-    auto_label = user_doc.auto_label
+    auto_label = user_doc.auto_apply
 
     # ------------------------------------------------------------------
     # Bootstrap Gmail label IDs for labels that don't have one yet
@@ -410,15 +410,23 @@ async def _run_async(
         ),
     }
 
+    completed_at = datetime.now(UTC)
     await get_db()["job_results"].insert_one({
         "task_id": task_id,
         "user_id": user_id,
         "triggered_by": triggered_by,
         "status": "done",
         "created_at": now,
-        "completed_at": datetime.now(UTC),
+        "completed_at": completed_at,
         "summary": summary,
         "error": None,
     })
+
+    if user_doc.auto_sync:
+        from datetime import timedelta
+        from tasks.auto_sync import SYNC_INTERVAL_MINUTES
+        await update_user_document(user_id, {
+            "next_sync_at": completed_at + timedelta(minutes=SYNC_INTERVAL_MINUTES)
+        })
 
     return {"summary": summary, "count": len(enriched), "messages": enriched}

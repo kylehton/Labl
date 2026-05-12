@@ -42,7 +42,7 @@ async def _mock_get_or_create_user(user_id: str, email: str, name: str):
     from app.models.user import User, UserDocument
     doc = UserDocument(
         user=User(user_id=user_id, email=email, name=name),
-        auto_label=False,
+        auto_apply=False,
         labels={},
     )
     payload = doc.model_dump()

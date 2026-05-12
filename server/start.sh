@@ -17,8 +17,8 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 cleanup() {
     echo ""
     echo "Shutting down..."
-    kill "$UVICORN_PID" "$CELERY_PID" 2>/dev/null
-    wait "$UVICORN_PID" "$CELERY_PID" 2>/dev/null
+    kill "$UVICORN_PID" "$CELERY_PID" "$BEAT_PID" 2>/dev/null
+    wait "$UVICORN_PID" "$CELERY_PID" "$BEAT_PID" 2>/dev/null
 }
 trap cleanup EXIT INT TERM
 
@@ -26,9 +26,13 @@ echo "Starting Celery worker..."
 celery -A config.celery_app.celery_app worker --loglevel=info --pool=solo &
 CELERY_PID=$!
 
+echo "Starting Celery beat..."
+celery -A config.celery_app.celery_app beat --loglevel=info &
+BEAT_PID=$!
+
 echo "Starting FastAPI server..."
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+uvicorn app.main:app --host 0.0.0.0 --port 8000 ${RELOAD:+--reload} &
 UVICORN_PID=$!
 
-echo "Both processes running. Press Ctrl+C to stop."
+echo "All processes running. Press Ctrl+C to stop."
 wait

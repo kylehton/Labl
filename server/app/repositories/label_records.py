@@ -72,6 +72,16 @@ async def update_record_status(
     return _to_record(doc)
 
 
+async def delete_resolved_records_before(user_id: str, threshold: datetime) -> int:
+    """Delete terminal-status records older than threshold. Leaves 'suggested' records intact."""
+    result = await _get_col().delete_many({
+        "user_id": user_id,
+        "status": {"$in": ["applied", "confirmed", "rejected", "undone"]},
+        "applied_at": {"$lt": threshold},
+    })
+    return result.deleted_count
+
+
 async def get_recent_grouped_emails(
     user_id: str,
     limit: Optional[int] = 20,

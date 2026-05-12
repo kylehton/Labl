@@ -32,7 +32,7 @@ class SeedLabelBody(BaseModel):
 
 @router.get("")
 async def get_user(session: dict = Depends(require_auth)):
-    """Return the current user's document (user, auto_label, labels)."""
+    """Return the current user's document (user, auto_apply, auto_sync, labels)."""
     user_id = (session.get("user") or {}).get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="No user in session")
@@ -44,13 +44,13 @@ async def get_user(session: dict = Depends(require_auth)):
 
 @router.patch("")
 async def update_user(session: dict = Depends(require_auth), body: dict | None = None):
-    """Update current user document. Allowed keys: auto_label, labels (partial merge)."""
+    """Update current user document. Allowed keys: auto_apply, auto_sync, labels (partial merge)."""
     user_id = (session.get("user") or {}).get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="No user in session")
     if not body:
         body = {}
-    allowed = {"auto_label", "labels"}
+    allowed = {"auto_apply", "auto_sync", "labels"}
     update = {key: value for key, value in body.items() if key in allowed}
     if not update:
         raise HTTPException(status_code=400, detail="No allowed fields to update")

@@ -1,11 +1,14 @@
 """Label record endpoints — history, undo, confirm, reject."""
+import asyncio
 import logging
+from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.repositories.label_records import (
+    delete_resolved_records_before,
     get_record,
     get_recent_grouped_emails,
     get_records_for_user,
@@ -25,6 +28,10 @@ router = APIRouter(prefix="/api/label-records", tags=["label-records"])
 
 RECORD_ID_PATTERN = r"^[a-f0-9]{24}$"  # MongoDB ObjectId hex
 
+# Per-(user, label) locks to serialize concurrent confirm requests and prevent
+# read-modify-write races on the label's embedding corpus and medoid/clusters.
+_confirm_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
 
 def _gmail_client(session: dict, request: Request) -> GmailClient:
     tokens = session.get("tokens", {})
@@ -42,9 +49,26 @@ async def get_recent_emails(
 ):
     """Return recent emails grouped by message, with confirmed and suggested label arrays.
 
-    Delegates grouping and filtering to a MongoDB aggregation — no Python heuristics.
+    On each visit (debounced to 60s), deletes terminal-status records from before the
+    previous visit timestamp so the dashboard acts as a sliding "since last visit" window.
+    Suggested records are left intact to avoid orphaning Gmail shadow labels.
     """
     user_id = session["user"]["user_id"]
+    now = datetime.now(UTC)
+
+    user = await get_user_by_id(user_id)
+    last_visit = user.last_dashboard_visit if user else None
+
+    if last_visit is not None:
+        if last_visit.tzinfo is None:
+            last_visit = last_visit.replace(tzinfo=UTC)
+        if (now - last_visit).total_seconds() >= 60:
+            deleted = await delete_resolved_records_before(user_id, last_visit)
+            logger.info("Cleaned %d resolved records for user %s (before %s)", deleted, user_id, last_visit)
+            await update_user_document(user_id, {"last_dashboard_visit": now})
+    else:
+        await update_user_document(user_id, {"last_dashboard_visit": now})
+
     emails = await get_recent_grouped_emails(user_id, limit=limit)
     return {"emails": emails}
 
@@ -165,13 +189,23 @@ async def confirm_label_record(
     except HTTPException as e:
         logger.warning("Failed to remove suggested label for %s: %s", record_id, e)
 
-    # Update the ML model if we have the stored vector and text.
-    if record.vector and record.subject:
-        fields = confirm_label(label, record.vector, record.subject)
-        await update_user_document(
-            user_id,
-            {f"labels.{record.label_name}.{k}": v for k, v in fields.items()},
-        )
+    # Serialize concurrent confirmations on the same label to prevent read-modify-write
+    # races on the embedding corpus and medoid/cluster state.
+    async with _confirm_locks[f"{user_id}:{record.label_name}"]:
+        user_doc = await get_user_by_id(user_id)
+        if not user_doc:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        label = user_doc.labels.get(record.label_name)
+        if not label:
+            raise HTTPException(status_code=404, detail=f"Label '{record.label_name}' not found")
+
+        if record.vector and record.subject:
+            fields = confirm_label(label, record.vector, record.subject)
+            await update_user_document(
+                user_id,
+                {f"labels.{record.label_name}.{k}": v for k, v in fields.items()},
+            )
 
     updated = await update_record_status(record_id, "confirmed", resolved_at=datetime.now(UTC))
     return {"record": updated.model_dump()}

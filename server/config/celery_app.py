@@ -12,7 +12,7 @@ celery_app = Celery(
     "labl",
     broker=REDIS_URL,
     backend=REDIS_RESULT_URL,
-    include=["tasks.labeling"],
+    include=["tasks.labeling", "tasks.auto_sync"],
 )
 
 celery_app.conf.update(
@@ -23,4 +23,10 @@ celery_app.conf.update(
     enable_utc=True,
     result_expires=86400,  # 24h — results also persisted to Mongo
     task_track_started=True,
+    beat_schedule={
+        "scan-auto-syncs": {
+            "task": "tasks.auto_sync.scan_and_enqueue_auto_syncs",
+            "schedule": 300.0,  # every 5 minutes
+        },
+    },
 )
