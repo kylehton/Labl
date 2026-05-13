@@ -17,5 +17,6 @@ class UserDocument(BaseModel):
     last_checked: Optional[datetime] = None  # last time inbox was polled
     last_dashboard_visit: Optional[datetime] = None
     next_sync_at: Optional[datetime] = None  # earliest time the auto-sync scanner will re-enqueue
+    refresh_token_encrypted: Optional[str] = None  # encrypted Gmail refresh token for background jobs
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

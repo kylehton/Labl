@@ -40,6 +40,10 @@ async def create_session(data: dict) -> str:
     await get_or_create_user(user_id=user_id, email=email, name=name)
 
     refresh_encrypted = encrypt(refresh_token) if refresh_token else None
+
+    if refresh_encrypted:
+        from app.repositories.users import update_user_document
+        await update_user_document(user_id, {"refresh_token_encrypted": refresh_encrypted})
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=SESSION_TTL_SECONDS)
 

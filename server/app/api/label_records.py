@@ -6,12 +6,15 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from pydantic import BaseModel
 
+from app.models.label_record import LabelRecord
 from app.repositories.label_records import (
     delete_resolved_records_before,
     get_record,
     get_recent_grouped_emails,
     get_records_for_user,
+    insert_record,
     update_record_status,
 )
 from app.repositories.users import get_user_by_id, update_user_document
@@ -27,10 +30,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/label-records", tags=["label-records"])
 
 RECORD_ID_PATTERN = r"^[a-f0-9]{24}$"  # MongoDB ObjectId hex
+GMAIL_MESSAGE_ID_PATTERN = r"^[a-zA-Z0-9]+$"
 
 # Per-(user, label) locks to serialize concurrent confirm requests and prevent
 # read-modify-write races on the label's embedding corpus and medoid/clusters.
 _confirm_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+
+class ManualLabelBody(BaseModel):
+    gmail_message_id: str
+    label_name: str
 
 
 def _gmail_client(session: dict, request: Request) -> GmailClient:
@@ -119,6 +128,7 @@ async def undo_label_record(
         try:
             await client.apply_labels(
                 record.gmail_message_id,
+                add_label_ids=[],
                 remove_label_ids=[record.gmail_label_id],
             )
         except HTTPException as e:
@@ -184,6 +194,7 @@ async def confirm_label_record(
         if suggested_id:
             await client.apply_labels(
                 record.gmail_message_id,
+                add_label_ids=[],
                 remove_label_ids=[suggested_id],
             )
     except HTTPException as e:
@@ -246,6 +257,7 @@ async def reject_label_record(
         if suggested_id:
             await client.apply_labels(
                 record.gmail_message_id,
+                add_label_ids=[],
                 remove_label_ids=[suggested_id],
             )
     except HTTPException as e:
@@ -253,3 +265,65 @@ async def reject_label_record(
 
     updated = await update_record_status(record_id, "rejected", resolved_at=datetime.now(UTC))
     return {"record": updated.model_dump()}
+
+
+@router.post("/manual")
+async def apply_manual_label(
+    body: ManualLabelBody,
+    request: Request,
+    session: dict = Depends(require_auth),
+):
+    """Manually apply a label to a message from the dashboard.
+
+    Applies the Gmail label, creates a label_record with status 'applied' and
+    source 'manual'. Safe to call for any email visible in the dashboard.
+    """
+    import re
+    if not re.match(GMAIL_MESSAGE_ID_PATTERN, body.gmail_message_id):
+        raise HTTPException(status_code=422, detail="Invalid gmail_message_id")
+
+    user_id = session["user"]["user_id"]
+    user_doc = await get_user_by_id(user_id)
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    label = user_doc.labels.get(body.label_name)
+    if not label:
+        raise HTTPException(status_code=404, detail=f"Label '{body.label_name}' not found")
+
+    client = _gmail_client(session, request)
+
+    # Fetch subject so the record can display it without a Gmail round-trip later.
+    try:
+        msg = await client.get_message_body(body.gmail_message_id)
+        subject = msg.get("subject", "(no subject)")
+    except Exception:
+        subject = "(no subject)"
+
+    if label.gmail_label_id:
+        try:
+            await client.apply_labels(
+                body.gmail_message_id,
+                add_label_ids=[label.gmail_label_id],
+            )
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+    record = LabelRecord(
+        record_id="",
+        user_id=user_id,
+        task_id="manual",
+        gmail_message_id=body.gmail_message_id,
+        subject=subject,
+        label_name=body.label_name,
+        gmail_label_id=label.gmail_label_id,
+        action="label",
+        source="manual",
+        score=None,
+        vector=None,
+        status="applied",
+    )
+    record_id = await insert_record(record)
+    record.record_id = record_id
+
+    return {"record": record.model_dump()}

@@ -31,6 +31,16 @@ class GmailClient:
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.session_id = session_id
+        self._http = httpx.AsyncClient()
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        await self.aclose()
 
     # ------------------------------------------------------------------
     # Token refresh
@@ -42,16 +52,15 @@ class GmailClient:
             raise HTTPException(
                 status_code=401, detail="Session expired — please log in again"
             )
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                GOOGLE_TOKEN_URL,
-                data={
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "refresh_token": self.refresh_token,
-                    "grant_type": "refresh_token",
-                },
-            )
+        resp = await self._http.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "refresh_token": self.refresh_token,
+                "grant_type": "refresh_token",
+            },
+        )
         if resp.status_code != 200:
             logger.error("Token refresh failed: %s", resp.text)
             raise HTTPException(
@@ -84,18 +93,20 @@ class GmailClient:
         - 429 → honour Retry-After header if present, otherwise exponential backoff
           (2 ** attempt seconds); retries up to _MAX_RATE_LIMIT_RETRIES times.
         """
+        if not self.access_token:
+            await self._refresh_access_token()
+
         refreshed = False
         rate_attempts = 0
 
         while True:
-            async with httpx.AsyncClient() as client:
-                resp = await client.request(
-                    method,
-                    url,
-                    params=params,
-                    json=json,
-                    headers={"Authorization": f"Bearer {self.access_token}"},
-                )
+            resp = await self._http.request(
+                method,
+                url,
+                params=params,
+                json=json,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+            )
 
             if resp.status_code == 401 and not refreshed:
                 await self._refresh_access_token()

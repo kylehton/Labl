@@ -12,7 +12,7 @@ class LabelRecord(BaseModel):
     label_name: str
     gmail_label_id: Optional[str]
     action: Literal["label", "suggest"]         # what the pipeline decided
-    source: Literal["rule", "ml"]               # how the match was found
+    source: Literal["rule", "ml", "manual"]      # how the match was found
     score: Optional[float]                      # confidence score (None for rule matches)
     # embedding vector stored so confirm can update the model without re-fetching the email
     vector: Optional[list[float]] = None

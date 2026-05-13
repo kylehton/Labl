@@ -59,8 +59,9 @@ async def ensure_user_indexes() -> None:
 
 
 class UserRepository:
-    def __init__(self):
-        self.collection = get_db()[USERS_COLLECTION]
+    @property
+    def collection(self):
+        return get_db()[USERS_COLLECTION]
 
     async def get_by_id(self, user_id: str) -> Optional[UserDocument]:
         doc = await self.collection.find_one({"user.user_id": user_id}) or await self.collection.find_one({"user_id": user_id})

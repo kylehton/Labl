@@ -60,18 +60,24 @@ def run_labeling_pipeline(
     Returns:
         {"summary": {...}, "count": int, "messages": [...]}
     """
-    return asyncio.run(
-        _run_async(
-            task=self,
-            user_id=user_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            session_id=session_id,
-            triggered_by=triggered_by,
-            limit=limit,
-            debug=debug,
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(
+            _run_async(
+                task=self,
+                user_id=user_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                session_id=session_id,
+                triggered_by=triggered_by,
+                limit=limit,
+                debug=debug,
+            )
         )
-    )
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
 
 async def _run_async(
@@ -84,18 +90,10 @@ async def _run_async(
     limit: int | None,
     debug: bool,
 ) -> dict:
-    # Each worker process needs its own MongoDB connection.
     await reconnect_for_worker()
 
-    # Late imports — avoid loading the embedding model at Celery import time.
-    from app.models.label_record import LabelRecord
-    from app.repositories.label_records import insert_record
-    from app.repositories.users import get_user_by_id, update_user_document
-    from config.db import get_db
     from config.gmail import GmailClient
-    from fastapi import HTTPException
     from ml.embeddings import load_model
-    from ml.pipeline import batch_process_emails, confirm_label_batch
 
     load_model()
 
@@ -104,6 +102,33 @@ async def _run_async(
         refresh_token=refresh_token,
         session_id=session_id,
     )
+    try:
+        return await _run_pipeline(
+            client=client,
+            task=task,
+            user_id=user_id,
+            triggered_by=triggered_by,
+            limit=limit,
+            debug=debug,
+        )
+    finally:
+        await client.aclose()
+
+
+async def _run_pipeline(
+    client,
+    task,
+    user_id: str,
+    triggered_by: str,
+    limit: int | None,
+    debug: bool,
+) -> dict:
+    from app.models.label_record import LabelRecord
+    from app.repositories.label_records import insert_record
+    from app.repositories.users import get_user_by_id, update_user_document
+    from config.db import get_db
+    from fastapi import HTTPException
+    from ml.pipeline import batch_process_emails, confirm_label_batch
 
     task_id = task.request.id
 
